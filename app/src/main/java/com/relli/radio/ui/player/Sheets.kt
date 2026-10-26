@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -42,6 +43,8 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Radio
@@ -188,7 +191,8 @@ fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<F
             Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             Text(format(value), style = MaterialTheme.typography.titleSmall, color = Relli.gold)
         }
-        Slider(value, onChange, valueRange = range, steps = steps, colors = sliderColors())
+        // Touch, mouse, keyboard and TV remote (select it, then Left/Right) all work.
+        com.relli.radio.ui.components.RemoteSlider(value, onChange, range, Modifier.fillMaxWidth(), steps = steps, colors = sliderColors())
     }
 }
 
@@ -279,6 +283,7 @@ fun MoreActionsSheet(song: Song, nowPlaying: Boolean, onDismiss: () -> Unit) {
 
 @Composable
 fun EqualizerSheet(onDismiss: () -> Unit) {
+    val tv = com.relli.radio.ui.components.LocalIsTv.current
     val info by PlayerHub.eqInfo.collectAsState()
     var enabled by remember { mutableStateOf(prefs.eqEnabled.value) }
     var preset by remember { mutableIntStateOf(prefs.eqPreset.value) }
@@ -317,10 +322,26 @@ fun EqualizerSheet(onDismiss: () -> Unit) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         val v = bands.getOrElse(i) { 0 }
                         Text("${if (v > 0) "+" else ""}${v / 100}", style = MaterialTheme.typography.labelSmall)
-                        Box(Modifier.width(40.dp).height(170.dp), contentAlignment = Alignment.Center) {
+                        fun setBand(nv: Int) {
+                            val c = nv.coerceIn(eq.minMb, eq.maxMb)
+                            if (i < bands.size) bands[i] = c else bands.add(c)
+                        }
+                        if (tv) {
+                            // TV remote: a button to raise and one to lower each band (1 dB per press).
+                            com.relli.radio.ui.components.IconButton(onClick = { setBand(v + 100); saveBands() }) {
+                                Icon(Icons.Rounded.KeyboardArrowUp, "Raise ${hz} Hz", tint = Relli.cream)
+                            }
+                            Box(Modifier.width(10.dp).height(90.dp).clip(CircleShape).background(Relli.line), contentAlignment = Alignment.BottomCenter) {
+                                val frac = ((v - eq.minMb).toFloat() / (eq.maxMb - eq.minMb).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                Box(Modifier.fillMaxWidth().fillMaxHeight(frac).background(Relli.gold))
+                            }
+                            com.relli.radio.ui.components.IconButton(onClick = { setBand(v - 100); saveBands() }) {
+                                Icon(Icons.Rounded.KeyboardArrowDown, "Lower ${hz} Hz", tint = Relli.cream)
+                            }
+                        } else Box(Modifier.width(40.dp).height(170.dp), contentAlignment = Alignment.Center) {
                             Slider(
                                 value = v.toFloat(),
-                                onValueChange = { nv -> if (i < bands.size) bands[i] = nv.roundToInt() else bands.add(nv.roundToInt()) },
+                                onValueChange = { nv -> setBand(nv.roundToInt()) },
                                 onValueChangeFinished = { saveBands() },
                                 valueRange = eq.minMb.toFloat()..eq.maxMb.toFloat(),
                                 colors = sliderColors(),

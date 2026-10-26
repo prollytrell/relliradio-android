@@ -29,6 +29,7 @@ const defaults = {
   lyricsAlign: "left", // left | center
   lyricsOffset: 0,     // ms; positive shows lines earlier
   albumLayout: "grid", // grid | list
+  openPlayerOnSelect: true, // picking a song opens Now Playing
   homeSections: ["mixes", "favTracks", "newest", "rediscover", "recent", "randomArtists", "randomAlbums", "continue", "mostPlayed"],
 };
 

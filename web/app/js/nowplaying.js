@@ -333,6 +333,7 @@ export function mountPlayer(root) {
   sheets.hooks.showVisual = (m) => { mode = m; setPref("visual", m); queueOpen = false; layout(); };
   sheets.hooks.closeNowPlaying = () => close();
   document.addEventListener("relli:open-queue", () => open("queue"));
+  document.addEventListener("relli:open-player", () => setTimeout(() => open(), 50));
 
   // Swipe down on the cover to close on phones.
   let startY = null;

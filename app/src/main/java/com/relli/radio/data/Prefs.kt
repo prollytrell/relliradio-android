@@ -66,6 +66,8 @@ class Prefs(context: Context) {
     val lyricsSize = string("lyricsSize", "m")
     val homeWidgets = list("homeWidgets", DEFAULT_HOME)
     val albumGrid = bool("albumGrid", true)
+    /** Picking a song opens Now Playing right away. */
+    val openPlayerOnSelect = bool("openPlayerOnSelect", true)
 
     // Saved queue (so the app resumes where you left off)
     var savedQueue: SavedQueue?

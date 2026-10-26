@@ -73,6 +73,7 @@ fun SettingsScreen(bottom: Dp, onSignOut: () -> Unit) {
     val mobile by prefs.mobileQuality.flow.collectAsState()
     val visual by prefs.visual.flow.collectAsState()
     val lyricsSize by prefs.lyricsSize.flow.collectAsState()
+    val openOnSelect by prefs.openPlayerOnSelect.flow.collectAsState()
     var sheet by remember { mutableStateOf<String?>(null) }
     var editHome by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -104,6 +105,9 @@ fun SettingsScreen(bottom: Dp, onSignOut: () -> Unit) {
         item {
             Group("Interface") {
                 ActionRow(Icons.Rounded.Edit, "Edit home widgets") { editHome = true }
+                ToggleRow("Open Now Playing when you pick a song", openOnSelect, "Tapping a song in a list jumps straight to the player.") {
+                    prefs.openPlayerOnSelect.value = it
+                }
                 Label("Now Playing shows")
                 Column(Modifier.padding(horizontal = 6.dp)) { ChipRow(listOf("cover" to "Cover", "lyrics" to "Lyrics", "visualizer" to "Visualizer"), visual) { prefs.visual.value = it } }
                 Label("Lyrics size")

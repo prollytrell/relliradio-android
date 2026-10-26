@@ -6,6 +6,8 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -387,6 +389,7 @@ private class Entry(val uid: Long, val item: MediaItem)
 
 @Composable
 fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () -> Unit) {
+    val tv = com.relli.radio.ui.components.LocalIsTv.current
     val queue by Playback.queue.collectAsState()
     val index by Playback.index.collectAsState()
     val list = rememberLazyListState(initialFirstVisibleItemIndex = index.coerceAtLeast(0))
@@ -446,7 +449,7 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
             Text("Save", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable(onClick = onSave).padding(8.dp))
             Text("Clear", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable { Playback.clearUpcoming() }.padding(8.dp))
         }
-        Text("Press and hold a song, then drag to move it.", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.55f), modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
+        Text(if (tv) "Use the arrows next to a song to move it." else "Press and hold a song, then drag to move it.", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.55f), modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
         LazyColumn(state = list, modifier = Modifier.weight(1f)) {
             itemsIndexed(entries, key = { _, e -> e.uid }) { i, e ->
                 val isDragged = dragging == e.uid
@@ -475,7 +478,12 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
                             }
                         }
                 ) {
-                    QueueRow(e.item, now = now, lifted = isDragged,
+                    QueueRow(e.item, now = now, lifted = isDragged, tv = tv,
+                        onMove = { dir ->
+                            val at = entries.indexOfFirst { it.uid == e.uid }
+                            val to = at + dir
+                            if (at >= 0 && to in entries.indices) { entries.add(to, entries.removeAt(at)); Playback.move(at, to) }
+                        },
                         onRemove = { val at = entries.indexOfFirst { it.uid == e.uid }; if (at >= 0) Playback.remove(at) })
                 }
             }
@@ -484,7 +492,7 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
 }
 
 @Composable
-private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, onRemove: () -> Unit) {
+private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, tv: Boolean, onMove: (Int) -> Unit, onRemove: () -> Unit) {
     val song: Song = remember(item) { item.toSong() }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
@@ -498,8 +506,10 @@ private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, onRemove: (
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.DragHandle, null, tint = Relli.cream.copy(alpha = if (lifted) 0.9f else 0.35f), modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(6.dp))
+        if (!tv) {
+            Icon(Icons.Rounded.DragHandle, null, tint = Relli.cream.copy(alpha = if (lifted) 0.9f else 0.35f), modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(6.dp))
+        }
         Cover(song.coverArt ?: song.albumId, Modifier.size(46.dp), 120, RoundedCornerShape(8.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -509,7 +519,12 @@ private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, onRemove: (
                 Text(song.artist ?: "", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (now) Text("Playing", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 10.dp))
+        // TV remote: move up / move down buttons instead of press-and-drag.
+        if (tv) {
+            IconButton(onClick = { onMove(-1) }) { Icon(Icons.Rounded.KeyboardArrowUp, "Move up", tint = Relli.cream.copy(alpha = 0.8f)) }
+            IconButton(onClick = { onMove(1) }) { Icon(Icons.Rounded.KeyboardArrowDown, "Move down", tint = Relli.cream.copy(alpha = 0.8f)) }
+        }
+        if (now) Text("Playing", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp))
         else IconButton(onClick = onRemove) { Icon(Icons.Rounded.Close, "Remove from queue", tint = Relli.cream.copy(alpha = 0.6f)) }
     }
 }

@@ -73,6 +73,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,6 +102,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val prefs get() = RelliApp.prefs
+private val arrowKeys = setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter)
 
 /** Position of the current song, refreshed a few times a second while visible. */
 @Composable
@@ -144,7 +151,10 @@ fun NowPlaying() {
 
     // TV remotes start on the play button, so the arrows can reach everything from there.
     val playFocus = remember { FocusRequester() }
+    var anyFocused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(350); runCatching { playFocus.requestFocus() } }
+    // When a sheet (More actions, Equalizer, Speed…) closes, bring the selection back to Play.
+    LaunchedEffect(sheet) { if (sheet == null) { delay(250); if (!anyFocused) runCatching { playFocus.requestFocus() } } }
 
     val bg by animateColorAsState(tone.bg, tween(700), label = "bg")
     val deep by animateColorAsState(tone.deep, tween(700), label = "deep")
@@ -161,7 +171,12 @@ fun NowPlaying() {
     Box(
         Modifier.fillMaxSize()
             .background(Brush.verticalGradient(0f to bg, 0.45f to bg, 1f to deep))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            // If the remote's selection ever ends up nowhere (for example after a sheet closes),
+            // the next arrow press puts it back on the play button.
+            .onFocusChanged { anyFocused = it.hasFocus }
+            .onPreviewKeyEvent { e ->
+                if (!anyFocused && e.type == KeyEventType.KeyDown && e.key in arrowKeys) { runCatching { playFocus.requestFocus() }; true } else false
+            }
     ) {
         BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             val wide = maxWidth > 700.dp

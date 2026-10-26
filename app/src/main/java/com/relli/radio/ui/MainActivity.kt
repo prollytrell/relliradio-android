@@ -91,7 +91,13 @@ class MainActivity : ComponentActivity() {
         if (!isTv && resources.configuration.smallestScreenWidthDp < 600) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
-        setContent { RelliTheme { com.relli.radio.ui.components.FocusRings { Root() } } }
+        setContent {
+            RelliTheme {
+                androidx.compose.runtime.CompositionLocalProvider(com.relli.radio.ui.components.LocalIsTv provides isTv) {
+                    com.relli.radio.ui.components.FocusRings { Root() }
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

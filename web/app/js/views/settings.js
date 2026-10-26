@@ -69,6 +69,7 @@ export async function settingsView() {
       ),
       group("Interface",
         actionRow("home", "Edit home widgets", () => editHomeSheet()),
+        toggle("Open Now Playing when you pick a song", getPref("openPlayerOnSelect"), (v) => setPref("openPlayerOnSelect", v), "Clicking a song in a list jumps straight to the player."),
         actionRow("lyrics", "Lyrics size, alignment, and timing", () => lyricsSettingsSheet()),
         row("Now Playing shows", null, chips([["cover", "Cover"], ["lyrics", "Lyrics"], ["visualizer", "Visualizer"]], getPref("visual"), (v) => setPref("visual", v))),
         row("Visualizer style", null, chips([["bars", "Bars"], ["wave", "Wave"], ["ring", "Ring"]], getPref("vizStyle"), (v) => setPref("vizStyle", v))),

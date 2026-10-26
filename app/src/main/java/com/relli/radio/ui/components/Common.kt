@@ -152,7 +152,13 @@ fun SongRow(song: Song, onClick: () -> Unit, number: Int? = null, showCover: Boo
     val playing = current?.mediaId == song.id
     var menu by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .clickable {
+                onClick()
+                // Optional (Settings → Open Now Playing when you pick a song).
+                if (RelliApp.prefs.openPlayerOnSelect.value) com.relli.radio.ui.Nav.playerOpen.value = true
+            }
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         when {

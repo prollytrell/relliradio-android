@@ -2,6 +2,7 @@
 
 import * as api from "./api.js";
 import { player } from "./player.js";
+import { getPref } from "./prefs.js";
 import { h, icon, iconButton, cover, fmtTime, toast, plural, showMenu } from "./ui.js";
 import * as sheets from "./sheets.js";
 import { isDownloaded } from "./offline.js";
@@ -65,7 +66,11 @@ export function songList(songs, { numbered = false, covers = true, source = "", 
 }
 
 export function songRow(song, i, list, { numbered = false, covers = true, source = "", extraMenu } = {}) {
-  const play = () => player.playList(list, i, { shuffle: false, source });
+  const play = () => {
+    player.playList(list, i, { shuffle: false, source });
+    // Optional (Settings → Open Now Playing when you pick a song).
+    if (getPref("openPlayerOnSelect")) document.dispatchEvent(new Event("relli:open-player"));
+  };
   const more = iconButton("more", "More options", (e) => {
     e.stopPropagation();
     rowMenu(song, i, more, extraMenu);

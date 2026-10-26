@@ -11,6 +11,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ripple
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -86,4 +97,54 @@ fun IconButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Bool
             .clickable(interactionSource = source, indication = FocusIndication, enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { content() }
+}
+
+/** True on Android TV / Google TV. Screens use it to swap touch-only controls for remote-friendly ones. */
+val LocalIsTv = staticCompositionLocalOf { false }
+
+/**
+ * A slider that works by touch, mouse, keyboard and TV remote. Select it with the remote, then
+ * Left/Right (or Up/Down for [vertical]) move it one step. The other arrows still move between controls.
+ */
+@Composable
+fun RemoteSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    steps: Int = 0,
+    vertical: Boolean = false,
+    onValueChangeFinished: (() -> Unit)? = null,
+    colors: SliderColors = SliderDefaults.colors(),
+    sliderModifier: Modifier = Modifier,
+) {
+    val span = valueRange.endInclusive - valueRange.start
+    val step = if (steps > 0) span / (steps + 1) else span / 20f
+    fun nudge(dir: Int) {
+        var v = (value + dir * step).coerceIn(valueRange.start, valueRange.endInclusive)
+        if (steps > 0) v = (valueRange.start + Math.round((v - valueRange.start) / step) * step).coerceIn(valueRange.start, valueRange.endInclusive)
+        onValueChange(v)
+        onValueChangeFinished?.invoke()
+    }
+    val more = if (vertical) Key.DirectionUp else Key.DirectionRight
+    val less = if (vertical) Key.DirectionDown else Key.DirectionLeft
+    Box(
+        modifier
+            .onKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) false
+                else if (e.key == more) { nudge(1); true }
+                else if (e.key == less) { nudge(-1); true }
+                else false
+            }
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = FocusIndication) {},
+        contentAlignment = Alignment.Center,
+    ) {
+        Slider(
+            value = value, onValueChange = onValueChange, valueRange = valueRange, steps = steps,
+            onValueChangeFinished = onValueChangeFinished, colors = colors,
+            // The box above takes the remote's focus; the slider itself is for touch and mouse.
+            modifier = sliderModifier.focusProperties { canFocus = false },
+        )
+    }
 }
