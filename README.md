@@ -36,12 +36,25 @@ You don't need Android Studio. Every time code is pushed to GitHub, **GitHub Act
 
 1. On your phone, open the repo's **Releases** page and tap `RelliRadio.apk`.
 2. Android asks to allow installs from your browser: **Settings → Allow from this source**, then go back and tap **Install**.
-3. Open RelliRadio, enter your server address (`https://radio.prollytrell.duckdns.org`), your Navidrome username and password.
+3. Open RelliRadio. The server address is `http://192.168.1.10:4533` (Navidrome on the Pi); enter your Navidrome username and password. The same address works away from home with WireGuard on.
 4. Allow notifications when asked; that's what shows the player in your status bar.
 
 Updates: download the newer APK from Releases and install it over the old one. Your sign-in and settings stay.
 
 **Android Auto:** sideloaded apps are hidden in Android Auto until you allow them once. In the Android Auto app settings, tap **Version** about 10 times to unlock developer settings, then ⋮ → **Developer settings** → turn on **Unknown sources**. RelliRadio then appears in the car's app list.
+
+## On your TV (Android TV / Google TV)
+
+The same APK installs on Android-based TVs and streaming sticks (Chromecast with Google TV, Onn, Fire TV, Nvidia Shield).
+
+1. On the TV, install **Downloader** (by AFTVnews) from the app store.
+2. Allow it to install apps: Settings → Apps → Security & restrictions → Unknown sources → Downloader → on. (Menu names vary by brand.)
+3. Open Downloader, enter the address of the latest release's `RelliRadio.apk` (or a short link to it), and install.
+4. Sign in with `http://192.168.1.10:4533`. Use the remote's arrows; the selected item has a gold outline.
+
+## Picking up on another device
+
+Every device saves its queue and position to Navidrome while playing (every 15 seconds, and whenever you pause or skip). When you open RelliRadio on another device, a bar offers **Continue from <device>?** with the song and time. Tap **Resume** and it carries on from there. This works between the phone app, the TV app, and the desktop web app.
 
 ## Features
 
