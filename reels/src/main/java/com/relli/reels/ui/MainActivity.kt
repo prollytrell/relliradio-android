@@ -138,11 +138,13 @@ private fun AppShell(onSignOut: () -> Unit) {
     var bottom by remember { mutableStateOf(90.dp) }
     val pad = if (tv) 30.dp else bottom
 
+    // Tabs always open at their top screen. (Restoring each tab's last screen trapped you on a
+    // show page: tapping Home brought the show page back instead of Home.)
     val navigate: (String) -> Unit = { r ->
-        nav.navigate(r) {
-            popUpTo("home") { saveState = true }
+        if (r == "home") nav.popBackStack("home", inclusive = false)
+        else nav.navigate(r) {
+            popUpTo("home")
             launchSingleTop = true
-            restoreState = true
         }
     }
 
