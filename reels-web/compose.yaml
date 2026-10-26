@@ -1,0 +1,13 @@
+# RelliReels in a browser: http://<server>:8089
+services:
+  rellireels:
+    image: caddy:2
+    container_name: rellireels
+    restart: unless-stopped
+    environment:
+      JELLYFIN: "192.168.1.10:8096" # change when Jellyfin moves to the new server
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./app:/srv/rellireels:ro

@@ -1,0 +1,76 @@
+# Builds the RelliReels desktop app (Windows installer, Linux AppImage / .rpm / .deb)
+# whenever the web app or the desktop shell changes. Files land in a "reels-desktop-N" release.
+name: Build RelliReels desktop app
+
+on:
+  push:
+    branches: [main]
+    paths: ["reels-web/app/**", "reels-desktop/**", ".github/workflows/reels-desktop.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: reels-desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Tools for .rpm packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: Set version
+        shell: bash
+        run: npm version "1.0.${{ github.run_number }}" --no-git-tag-version --allow-same-version
+
+      - run: npm install --no-audit --no-fund
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: npm run dist:linux
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: npm run dist:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reels-desktop-${{ runner.os }}
+          path: |
+            reels-desktop/dist/*.AppImage
+            reels-desktop/dist/*.rpm
+            reels-desktop/dist/*.deb
+            reels-desktop/dist/*.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - run: ls -la out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: reels-desktop-${{ github.run_number }}
+          name: RelliReels desktop ${{ github.run_number }}
+          body: |
+            **Windows:** download `RelliReels-…-x64.exe` and run it. Windows may warn that the publisher is unknown: click **More info → Run anyway**.
+
+            **Fedora:** download the `.rpm`, then `sudo dnf install ./RelliReels-*.rpm`. (Ubuntu/Debian: the `.deb`. Any Linux: the `.AppImage`, then `chmod +x` and run it.)
+
+            Sign in with `http://192.168.1.10:8096` (your Jellyfin server) and your Jellyfin account.
+          files: out/*

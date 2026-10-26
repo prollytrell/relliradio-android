@@ -1,0 +1,31 @@
+# RelliReels web server: serves the app, and passes /jellyfin/... to your Jellyfin server.
+# With both on one address the browser never has to deal with CORS, and HTTPS works for both.
+
+{
+	auto_https off
+}
+
+http://:8089 {
+	encode zstd gzip
+
+	# /jellyfin/Items/... → Jellyfin's /Items/... (reverse proxy, prefix removed)
+	handle_path /jellyfin/* {
+		reverse_proxy {$JELLYFIN:192.168.1.10:8096} {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/rellireels
+		@fresh path / /index.html
+		header @fresh Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}
