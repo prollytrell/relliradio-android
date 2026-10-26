@@ -274,7 +274,7 @@ private fun HandoffBanner() {
             while (true) {
                 // While playing here, the playback service does this check itself.
                 if (!Playback.playing.value) com.relli.radio.playback.Handoff.check()
-                kotlinx.coroutines.delay(10_000)
+                kotlinx.coroutines.delay(3_000)
             }
         }
     }
@@ -289,7 +289,7 @@ private fun HandoffBanner() {
         androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
             androidx.compose.material3.Text("Continue from ${q.changedBy?.removePrefix("RelliRadio")?.trim()?.trim('(', ')')?.ifBlank { null } ?: "your other device"}?",
                 style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = Relli.gold)
-            androidx.compose.material3.Text("${song.title} · ${com.relli.radio.ui.components.fmtTime(q.positionMs / 1000)}",
+            androidx.compose.material3.Text("${song.title} · ${com.relli.radio.ui.components.fmtTime(q.livePositionMs() / 1000)}",
                 style = androidx.compose.material3.MaterialTheme.typography.titleSmall, maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }

@@ -93,21 +93,24 @@ export function createVisualizer() {
       return;
     }
 
+    // Mirrored and centered: bass in the middle, treble toward both edges,
+    // and each bar grows up and down from the center line.
+    const half = Math.max(12, Math.floor(bands / 2));
+    const total = half * 2;
     const gap = 4;
-    const bw = (w - gap * (bands - 1)) / bands;
-    const mid = hgt * 0.7;
-    ctx.fillStyle = grad;
-    for (let b = 0; b < bands; b++) {
-      const bh = Math.max(4, smooth[b] * mid);
-      const x = b * (bw + gap);
-      ctx.beginPath();
-      ctx.roundRect(x, mid - bh, bw, bh, Math.min(bw / 2, 6));
-      ctx.fill();
-      ctx.globalAlpha = 0.18;
-      ctx.beginPath();
-      ctx.roundRect(x, mid + 4, bw, bh * 0.5, Math.min(bw / 2, 6));
-      ctx.fill();
-      ctx.globalAlpha = 1;
+    const bw = (w - gap * (total - 1)) / total;
+    const mid = hgt / 2, reach = hgt * 0.46;
+    const glow = ctx.createLinearGradient(0, mid - reach, 0, mid + reach);
+    glow.addColorStop(0, c2); glow.addColorStop(0.5, c1); glow.addColorStop(1, c2);
+    ctx.fillStyle = glow;
+    for (let k = 0; k < half; k++) {
+      const v = smooth[Math.min(bands - 1, Math.floor((k * bands) / half))];
+      const bh = Math.max(3, v * reach);
+      for (const x of [(half + k) * (bw + gap), (half - 1 - k) * (bw + gap)]) {
+        ctx.beginPath();
+        ctx.roundRect(x, mid - bh, bw, bh * 2, Math.min(bw / 2, 6));
+        ctx.fill();
+      }
     }
   }
 

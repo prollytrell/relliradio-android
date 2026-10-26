@@ -3,7 +3,7 @@
 // live from Navidrome), except cover art, which is cached to save data.
 // Bump VERSION whenever you change any app file so phones pick up the update.
 
-const VERSION = "relliradio-v5";
+const VERSION = "relliradio-v6";
 const OFFLINE_CACHE = "relliradio-offline"; // downloaded songs: never cleared on update
 const ART_CACHE = "relliradio-art";
 const SHELL = [

@@ -128,7 +128,7 @@ function renderHandoff() {
   const bar = h("div.handoff", { role: "status" },
     h("div.handoff-text",
       h("span.handoff-from", `Playing on ${where}`),
-      h("span.handoff-song", `${song.title} · ${fmtTime((q.position || 0) / 1000)}`)),
+      h("span.handoff-song", `${song.title} · ${fmtTime((q.livePosition ?? q.position ?? 0) / 1000)}`)),
     h("button.btn.primary.small", { type: "button", onclick: () => { bar.remove(); playHere(); } }, "Play here"),
     h("button.icon-btn", { type: "button", "aria-label": "Not now", onclick: () => dismissHandoff() }, icon("close")));
   root.append(bar);

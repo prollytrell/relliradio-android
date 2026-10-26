@@ -101,4 +101,21 @@ data class SavedQueue(
     /** Which app/device saved it (for example "RelliRadio (Pixel 8)") and when, in milliseconds. */
     val changedBy: String? = null,
     val changedAt: Long = 0,
-)
+    /** The server's clock when we fetched this (from the response's Date header), or 0. */
+    val serverNow: Long = 0,
+) {
+    /**
+     * Where the other device is *right now*. Its last save may be a few seconds old; if it's still
+     * playing (it saved within the last few seconds), add the time that has passed since.
+     */
+    fun livePositionMs(): Long {
+        if (serverNow <= 0 || changedAt <= 0) return positionMs
+        val age = serverNow - changedAt + 500 // the Date header is rounded down to the second
+        return if (age in 0..SAVE_EVERY_MS * 2 + 1500) positionMs + age else positionMs
+    }
+
+    companion object {
+        /** How often a playing device saves its position to Navidrome. */
+        const val SAVE_EVERY_MS = 3_000L
+    }
+}

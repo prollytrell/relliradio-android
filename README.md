@@ -76,10 +76,10 @@ The same APK installs on Android-based TVs and streaming sticks (Chromecast with
 
 ## Moving between devices
 
-Every device saves its queue and position to Navidrome while it plays (every 15 seconds, and whenever you pause or skip). Navidrome records which device saved last.
+Every device saves its queue and position to Navidrome every 3 seconds while it plays, and whenever you pause or skip. Navidrome records which device saved last and when.
 
-- Any open RelliRadio that isn't playing checks every 10 seconds. If another device is playing, it shows **Playing on <device>** with **Play here**.
-- Tap **Play here** and the music continues from the same spot. Within about 30 seconds the other device notices and pauses itself, so it moves instead of playing in two rooms.
+- Any open RelliRadio that isn't playing checks every 3 seconds. If another device is playing, it shows **Playing on <device>** with **Play here**.
+- Tap **Play here** and the music continues from where the other device is *right now* (its last save plus the seconds since, timed with the server's clock). Within about 3 seconds the other device notices and pauses itself, so the music moves instead of playing in two rooms.
 - Pressing play on a device's own queue also makes it the active one.
 
 Works between the phone, TV and desktop apps (and the web app in a browser).

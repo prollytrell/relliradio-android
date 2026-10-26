@@ -63,17 +63,17 @@ player.addEventListener("state", async () => {
   wasPlaying = now;
 });
 
-// Every 10 seconds: idle → look for another device to pick up from;
-// playing (after a 30-second grace period) → pause if another device took over.
+// Every 3 seconds: idle → look for another device to pick up from;
+// playing (after an 8-second grace period) → pause if another device took over.
 setInterval(async () => {
   if (document.visibilityState !== "visible" && !player.playing) return;
   const t = Date.now();
-  if (t - lastCheck < 9_000) return;
+  if (t - lastCheck < 2_800) return;
   lastCheck = t;
   if (!player.playing) { await check(); return; }
-  if (t - activeSince < 30_000) return;
+  if (t - activeSince < 8_000) return;
   if (await check() && player.playing) {
     player.passive = true; // stop saving, or the other device would pause in turn
     player.pause();
   }
-}, 2_000);
+}, 1_000);

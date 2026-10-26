@@ -229,14 +229,19 @@ class Subsonic(private val creds: () -> Credentials?) {
         } catch (_: Exception) {}
     }
 
-    suspend fun playQueue(): SavedQueue? {
-        val q = call("getPlayQueue")["playQueue"]?.jsonObject ?: return null
+    suspend fun playQueue(): SavedQueue? = withContext(Dispatchers.IO) {
+        // Fetched directly (not through call()) to read the server's clock from the Date header.
+        val res = http.newCall(Request.Builder().url(url("getPlayQueue")).build()).execute()
+        val (body, serverNow) = res.use { (it.body?.string() ?: "") to (it.headers.getDate("Date")?.time ?: 0L) }
+        val r = json.parseToJsonElement(body).jsonObject["subsonic-response"]?.jsonObject
+        if (r?.get("status")?.jsonPrimitive?.contentOrNull != "ok") return@withContext null
+        val q = r["playQueue"]?.jsonObject ?: return@withContext null
         val songs = q["entry"].list<Song>()
-        if (songs.isEmpty()) return null
+        if (songs.isEmpty()) return@withContext null
         val changed = q["changed"]?.jsonPrimitive?.contentOrNull
         val at = changed?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() } ?: 0L
-        return SavedQueue(songs, q["current"]?.jsonPrimitive?.contentOrNull, q["position"]?.jsonPrimitive?.longOrNull ?: 0,
-            q["changedBy"]?.jsonPrimitive?.contentOrNull, at)
+        SavedQueue(songs, q["current"]?.jsonPrimitive?.contentOrNull, q["position"]?.jsonPrimitive?.longOrNull ?: 0,
+            q["changedBy"]?.jsonPrimitive?.contentOrNull, at, serverNow)
     }
 
     suspend fun lyrics(song: Song): Lyrics? {

@@ -316,15 +316,21 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                             }
                         }
                         else -> {
-                            val n = fft.size
+                            // Mirrored and centered: bass in the middle, treble toward both edges,
+                            // and each bar grows up and down from the center line.
+                            val half = 24
+                            val n = half * 2
                             val gap = 4.dp.toPx()
                             val bw = (size.width - gap * (n - 1)) / n
-                            val base = size.height * 0.7f
-                            fft.forEachIndexed { i, v ->
-                                val h = (v * base).coerceAtLeast(3.dp.toPx())
-                                val x = i * (bw + gap)
-                                drawRoundRect(brush, Offset(x, base - h), Size(bw, h), CornerRadius(bw / 2))
-                                drawRoundRect(c1.copy(alpha = 0.16f), Offset(x, base + 3.dp.toPx()), Size(bw, h * 0.4f), CornerRadius(bw / 2))
+                            val mid = size.height / 2
+                            val reach = size.height * 0.46f
+                            val glow = Brush.verticalGradient(listOf(c2, c1, c2), startY = mid - reach, endY = mid + reach)
+                            for (k in 0 until half) {
+                                val v = fft[(k * fft.size / half).coerceAtMost(fft.size - 1)]
+                                val h = (v * reach).coerceAtLeast(2.dp.toPx())
+                                for (x in listOf((half + k) * (bw + gap), (half - 1 - k) * (bw + gap))) {
+                                    drawRoundRect(glow, Offset(x, mid - h), Size(bw, h * 2), CornerRadius(bw / 2))
+                                }
                             }
                         }
                     }

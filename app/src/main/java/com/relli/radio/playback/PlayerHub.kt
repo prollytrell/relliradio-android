@@ -106,11 +106,12 @@ object PlayerHub {
                 }
             }
             sleepTick()
-            if (p.isPlaying && System.currentTimeMillis() - lastServerSave > 15_000) saveQueue(server = true)
+            // Position to Navidrome every 3 seconds while playing, so another device can pick up almost exactly here.
+            if (p.isPlaying && System.currentTimeMillis() - lastServerSave >= SavedQueue.SAVE_EVERY_MS - 200) saveQueue(server = true, local = false)
             // Another device took over? Pause here so the music moves instead of doubling up.
-            // (A 30-second grace period after starting lets both devices' saves land first.)
+            // (A short grace period after starting lets both devices' saves land first.)
             val now = System.currentTimeMillis()
-            if (p.isPlaying && now - activeSince > 30_000 && now - lastHandoffCheck > 10_000) {
+            if (p.isPlaying && now - activeSince > 8_000 && now - lastHandoffCheck >= 2_800) {
                 lastHandoffCheck = now
                 if (Handoff.check() && p.isPlaying) {
                     Handoff.tookOver()
@@ -125,11 +126,11 @@ object PlayerHub {
 
     private fun queueSongs(p: Player) = (0 until p.mediaItemCount).map { p.getMediaItemAt(it) }.filter { !it.isRadio }
 
-    fun saveQueue(server: Boolean) {
+    fun saveQueue(server: Boolean, local: Boolean = true) {
         val p = player ?: return
         val items = queueSongs(p)
         val current = p.currentMediaItem?.takeIf { !it.isRadio }?.mediaId
-        prefs.savedQueue = if (items.isEmpty()) null else SavedQueue(items.map { it.toSong() }, current, p.currentPosition)
+        if (local) prefs.savedQueue = if (items.isEmpty()) null else SavedQueue(items.map { it.toSong() }, current, p.currentPosition)
         if (server && items.isNotEmpty() && !Handoff.passive) {
             lastServerSave = System.currentTimeMillis()
             prefs.lastSync.value = lastServerSave
@@ -153,7 +154,8 @@ object PlayerHub {
         Handoff.pickedUp(q)
         val p = player ?: return false
         val idx = q.songs.indexOfFirst { it.id == q.currentId }.coerceAtLeast(0)
-        p.setMediaItems(q.songs.map { it.toMediaItem() }, idx, q.positionMs)
+        // Start where the other device is now, not where it last saved.
+        p.setMediaItems(q.songs.map { it.toMediaItem() }, idx, q.livePositionMs())
         p.prepare()
         p.play()
         prefs.lastSync.value = System.currentTimeMillis()

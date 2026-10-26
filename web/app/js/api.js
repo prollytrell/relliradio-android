@@ -65,6 +65,8 @@ function buildUrl(method, params = {}, s = session) {
   return `${s.server}/rest/${method}?${qs}`;
 }
 
+let lastServerTime = 0; // the server's clock from the last response's Date header
+
 async function call(method, params = {}, s = session) {
   if (!s) throw new ApiError("Sign in to continue.", "no-session");
   let res;
@@ -74,6 +76,7 @@ async function call(method, params = {}, s = session) {
     throw new ApiError("Can't reach the music server. Check that you're home or the VPN is on.", "network");
   }
   if (!res.ok) throw new ApiError(`The server answered with HTTP ${res.status}.`, res.status);
+  lastServerTime = Date.parse(res.headers.get("date") || "") || 0;
   const body = await res.json();
   const r = body["subsonic-response"];
   if (!r) throw new ApiError("That address isn't a Navidrome or Subsonic server.", "bad-response");
@@ -244,14 +247,26 @@ export async function savePlayQueue(ids, current, positionMs) {
   } catch {}
 }
 
+export const SAVE_EVERY_MS = 3000; // how often a playing device saves its spot
+
+function livePosition(position, changedAt, serverNow) {
+  if (!serverNow || !changedAt) return position;
+  const age = serverNow - changedAt + 500; // Date header is rounded down to the second
+  return age >= 0 && age <= SAVE_EVERY_MS * 2 + 1500 ? position + age : position;
+}
+
 export async function getPlayQueue() {
   try {
     const r = await call("getPlayQueue");
     const q = r.playQueue;
     if (!q) return null;
+    const changedAt = Date.parse(q.changed) || 0;
     return {
       songs: arr(q.entry), current: q.current, position: q.position || 0,
-      changedBy: q.changedBy || "", changedAt: Date.parse(q.changed) || 0,
+      changedBy: q.changedBy || "", changedAt,
+      // Where that device is *now*: if it saved within the last few seconds it's still playing,
+      // so add the time since its save (measured with the server's own clock).
+      livePosition: livePosition(q.position || 0, changedAt, lastServerTime),
     };
   } catch {
     return null;

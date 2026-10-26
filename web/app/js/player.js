@@ -82,7 +82,8 @@ class Player extends EventTarget {
     engine.setPitch(getPref("pitch"));
     this.setupMediaSession();
     window.addEventListener("pagehide", () => this.save(true));
-    setInterval(() => { if (this.playing) this.save(); }, 10000);
+    // Save the spot to Navidrome every 3 seconds while playing, so another device can pick up almost exactly here.
+    setInterval(() => { if (this.playing) this.save(true); }, api.SAVE_EVERY_MS);
   }
 
   emit(type) { this.dispatchEvent(new Event(type)); }
@@ -596,7 +597,8 @@ class Player extends EventTarget {
     this.index = i;
     this.original = null;
     this.source = q.changedBy ? `Continued from ${q.changedBy.replace(/^RelliRadio\s*/, "").replace(/[()]/g, "") || "another device"}` : "Resumed from another device";
-    this.load(autoplay, (q.position || 0) / 1000);
+    this.load(autoplay, (q.livePosition ?? q.position ?? 0) / 1000);
+    setTimeout(() => this.save(true), 300); // claim it right away so the other device pauses quickly
     try { localStorage.setItem("relli.lastSync", String(Date.now())); } catch {}
     this.emit("queue");
     return true;
