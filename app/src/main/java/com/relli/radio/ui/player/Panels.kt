@@ -15,6 +15,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import kotlinx.coroutines.launch
 import android.content.pm.PackageManager
 import android.media.audiofx.Visualizer
@@ -117,6 +123,17 @@ fun WaveSeek(id: String, position: Long, duration: Long, live: Boolean, onSeek: 
     val pct = drag ?: if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     Canvas(
         modifier.fillMaxWidth().height(58.dp)
+            // TV remote / keyboard: select the bar, then left and right jump 10 seconds.
+            .onKeyEvent { e ->
+                if (live || duration <= 0 || e.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (e.key) {
+                    Key.DirectionLeft -> { onSeek(position - 10_000); true }
+                    Key.DirectionRight -> { onSeek(position + 10_000); true }
+                    else -> false
+                }
+            }
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = com.relli.radio.ui.components.FocusIndication, enabled = !live) {}
             .pointerInput(duration, live) {
                 if (live || duration <= 0) return@pointerInput
                 detectTapGestures { o -> onSeek((o.x / size.width * duration).toLong()) }
@@ -224,7 +241,12 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                     override fun onWaveFormDataCapture(v: Visualizer?, data: ByteArray?, rate: Int) {
                         data ?: return
                         // Boost quiet passages so the line always moves.
-                        val out = FloatArray(128) { i -> (((data[i * data.size / 128].toInt() and 0xFF) - 128) / 128f * 2.2f).coerceIn(-1f, 1f) }
+                        // Gate out the quiet bits so the line stays calm and spikes on hits.
+                        val out = FloatArray(128) { i ->
+                            val v = ((data[i * data.size / 128].toInt() and 0xFF) - 128) / 128f
+                            val mag = (kotlin.math.abs(v) - 0.08f).coerceAtLeast(0f) * 1.6f
+                            (if (v < 0) -mag else mag).coerceIn(-1f, 1f)
+                        }
                         wave = out
                     }
                     override fun onFftDataCapture(v: Visualizer?, data: ByteArray?, rate: Int) {
@@ -239,12 +261,12 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                                 val re = data[2 * k].toFloat(); val im = data[2 * k + 1].toFloat()
                                 m = maxOf(m, kotlin.math.sqrt(re * re + im * im))
                             }
-                            // More sensitive: lower ceiling, a lift for the treble end, and a curve that
-                            // makes small changes visible. Bars jump up fast and fall back smoothly.
-                            val tilt = 1f + b / 48f * 0.6f
-                            val level = (20 * kotlin.math.log10(m + 1f) / 30f * tilt).coerceIn(0f, 1f)
-                            val db = Math.pow(level.toDouble(), 0.75).toFloat()
-                            smooth[b] = if (db > smooth[b]) smooth[b] * 0.25f + db * 0.75f else smooth[b] * 0.88f + db * 0.12f
+                            // Dramatic: a noise floor keeps quiet parts low, a steep curve makes the beats
+                            // tower over everything else, and bars fall back slowly after each hit.
+                            val tilt = 1f + b / 48f * 0.35f
+                            val level = ((20 * kotlin.math.log10(m + 1f) / 42f * tilt) - 0.22f).coerceAtLeast(0f) / 0.78f
+                            val db = Math.pow(level.coerceIn(0f, 1f).toDouble(), 1.8).toFloat()
+                            smooth[b] = if (db > smooth[b]) db else smooth[b] * 0.93f + db * 0.07f
                         }
                         fft = smooth.copyOf()
                     }
@@ -288,7 +310,7 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                             fft.forEachIndexed { i, v ->
                                 for (side in listOf(1, -1)) {
                                     val a = (-PI / 2 + side * (i / fft.size.toDouble()) * PI).toFloat()
-                                    val len = 6.dp.toPx() + v * r
+                                    val len = 4.dp.toPx() + v * r * 1.4f
                                     drawLine(brush, Offset(cx + cos(a) * r, cy + sin(a) * r), Offset(cx + cos(a) * (r + len), cy + sin(a) * (r + len)), 4.dp.toPx(), StrokeCap.Round)
                                 }
                             }
@@ -297,9 +319,9 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                             val n = fft.size
                             val gap = 4.dp.toPx()
                             val bw = (size.width - gap * (n - 1)) / n
-                            val base = size.height * 0.62f
+                            val base = size.height * 0.7f
                             fft.forEachIndexed { i, v ->
-                                val h = (v * base * 0.95f).coerceAtLeast(3.dp.toPx())
+                                val h = (v * base).coerceAtLeast(3.dp.toPx())
                                 val x = i * (bw + gap)
                                 drawRoundRect(brush, Offset(x, base - h), Size(bw, h), CornerRadius(bw / 2))
                                 drawRoundRect(c1.copy(alpha = 0.16f), Offset(x, base + 3.dp.toPx()), Size(bw, h * 0.4f), CornerRadius(bw / 2))

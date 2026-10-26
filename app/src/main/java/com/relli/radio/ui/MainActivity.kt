@@ -20,16 +20,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -140,73 +144,141 @@ private fun AppShell(onSignOut: () -> Unit) {
     val density = LocalDensity.current
     var bottomHeight by remember { mutableStateOf(140.dp) }
 
-    Box(Modifier.fillMaxSize()) {
-        NavHost(nav, startDestination = "home", modifier = Modifier.fillMaxSize()) {
-            composable("home") { HomeScreen(bottomHeight) }
-            composable(
-                "library/{tab}?sort={sort}",
-                arguments = listOf(navArgument("tab") { type = NavType.StringType }, navArgument("sort") { type = NavType.StringType; nullable = true; defaultValue = null }),
-            ) { e -> LibraryScreen(e.arguments?.getString("tab") ?: "albums", e.arguments?.getString("sort"), bottomHeight) }
-            composable("search") { SearchScreen(bottomHeight) }
-            composable("settings") { SettingsScreen(bottomHeight, onSignOut) }
-            composable("album/{id}") { e -> AlbumScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
-            composable("artist/{id}") { e -> ArtistScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
-            composable("playlist/{id}") { e -> PlaylistScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
-            composable("genre/{name}") { e -> GenreScreen(e.arguments?.getString("name") ?: "", bottomHeight) }
+    val isTv = remember { isTelevision(context) }
+    val navigate: (String) -> Unit = { r ->
+        nav.navigate(r) {
+            popUpTo("home") { saveState = true }
+            launchSingleTop = true
+            restoreState = true
         }
+    }
 
-        // Mini player + bottom navigation (icons only, the active one in a gold pill)
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Relli.bg.copy(alpha = 0f), Relli.bg, Relli.bg), startY = 0f, endY = 60f))
-                .navigationBarsPadding()
-                .onSizeChanged { bottomHeight = with(density) { it.height.toDp() } },
-        ) {
-            HandoffBanner()
-            MiniPlayer(Modifier.padding(top = 10.dp))
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                TABS.forEach { tab ->
-                    val active = route.substringBefore("/") == tab.route.substringBefore("/")
-                    Box(
-                        Modifier.width(64.dp).height(38.dp).clip(CircleShape)
-                            .then(if (active) Modifier.background(Relli.goldMetal) else Modifier)
-                            .clickable {
-                                nav.navigate(tab.route) {
-                                    popUpTo("home") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(tab.icon, tab.label, tint = if (active) Relli.onGold else Relli.faint) }
+    Row(Modifier.fillMaxSize()) {
+        // TV: a rail on the left, always one press of the remote's Left button away,
+        // with Now Playing at the top.
+        if (isTv) TvRail(route, navigate)
+
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            NavHost(nav, startDestination = "home", modifier = Modifier.fillMaxSize()) {
+                composable("home") { HomeScreen(bottomHeight) }
+                composable(
+                    "library/{tab}?sort={sort}",
+                    arguments = listOf(navArgument("tab") { type = NavType.StringType }, navArgument("sort") { type = NavType.StringType; nullable = true; defaultValue = null }),
+                ) { e -> LibraryScreen(e.arguments?.getString("tab") ?: "albums", e.arguments?.getString("sort"), bottomHeight) }
+                composable("search") { SearchScreen(bottomHeight) }
+                composable("settings") { SettingsScreen(bottomHeight, onSignOut) }
+                composable("album/{id}") { e -> AlbumScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
+                composable("artist/{id}") { e -> ArtistScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
+                composable("playlist/{id}") { e -> PlaylistScreen(e.arguments?.getString("id") ?: "", bottomHeight) }
+                composable("genre/{name}") { e -> GenreScreen(e.arguments?.getString("name") ?: "", bottomHeight) }
+            }
+
+            // Phone: mini player + bottom navigation (icons only, the active one in a gold pill).
+            // TV: just the handoff bar here; navigation lives in the rail.
+            Column(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Relli.bg.copy(alpha = 0f), Relli.bg, Relli.bg), startY = 0f, endY = 60f))
+                    .navigationBarsPadding()
+                    .onSizeChanged { bottomHeight = with(density) { it.height.toDp() } },
+            ) {
+                HandoffBanner()
+                if (!isTv) {
+                    MiniPlayer(Modifier.padding(top = 10.dp))
+                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        TABS.forEach { tab ->
+                            val active = route.substringBefore("/") == tab.route.substringBefore("/")
+                            Box(
+                                Modifier.width(64.dp).height(38.dp).clip(CircleShape)
+                                    .then(if (active) Modifier.background(Relli.goldMetal) else Modifier)
+                                    .clickable { navigate(tab.route) },
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(tab.icon, tab.label, tint = if (active) Relli.onGold else Relli.faint) }
+                        }
+                    }
                 }
             }
         }
+    }
 
-        AnimatedVisibility(
-            visible = playerOpen && current != null,
-            enter = slideInVertically(tween(280)) { it },
-            exit = slideOutVertically(tween(240)) { it },
-        ) { NowPlaying() }
+    // Now Playing opens in its own window, so a TV remote's arrows stay inside it.
+    if (playerOpen && current != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { Nav.playerOpen.value = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            val shown = remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+            AnimatedVisibility(shown, enter = slideInVertically(tween(280)) { it }, exit = slideOutVertically(tween(240)) { it }) {
+                NowPlaying()
+            }
+        }
+    }
+}
+
+fun isTelevision(context: android.content.Context): Boolean =
+    (context.getSystemService(android.content.Context.UI_MODE_SERVICE) as android.app.UiModeManager).currentModeType ==
+        android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+
+@Composable
+private fun TvRail(route: String, navigate: (String) -> Unit) {
+    val current by Playback.current.collectAsState()
+    val playing by Playback.playing.collectAsState()
+    Column(
+        Modifier.width(96.dp).fillMaxHeight().background(Relli.bgDeep).padding(vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.relli.radio.R.drawable.rr_logo), "RelliRadio", Modifier.size(52.dp))
+        current?.let { item ->
+            val song = remember(item) { item.toSong() }
+            Column(
+                Modifier.width(76.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).clickable { Nav.playerOpen.value = true }.padding(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    com.relli.radio.ui.components.Cover(song.coverArt ?: song.albumId, Modifier.size(60.dp), 160, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    if (playing) Icon(Icons.Rounded.GraphicEq, null, tint = Relli.cream,
+                        modifier = Modifier.size(26.dp).background(Relli.bgDeep.copy(alpha = 0.6f), CircleShape).padding(3.dp))
+                }
+                androidx.compose.material3.Text("Now playing", style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = Relli.cream,
+                    modifier = Modifier.padding(top = 4.dp), maxLines = 1)
+            }
+        }
+        TABS.forEach { tab ->
+            val active = route.substringBefore("/") == tab.route.substringBefore("/")
+            Column(
+                Modifier.width(76.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .then(if (active) Modifier.background(Relli.goldMetal) else Modifier)
+                    .clickable { navigate(tab.route) }.padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(tab.icon, tab.label, tint = if (active) Relli.onGold else Relli.muted)
+                androidx.compose.material3.Text(tab.label, style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                    color = if (active) Relli.onGold else Relli.muted, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
     }
 }
 
 /**
- * "Pick up where you left off": when you open the app and another device (the desktop web app,
- * the TV, another phone) saved its queue to Navidrome more recently, offer to continue from there.
+ * "Pick up where you left off": while the app is open it asks Navidrome every 10 seconds which device
+ * played last. If another device (TV, desktop, another phone) is newer, offer to continue from there.
+ * The other device pauses on its own once this one takes over (see Handoff).
  */
 @Composable
 private fun HandoffBanner() {
-    val prefs = RelliApp.prefs
-    var offer by remember { mutableStateOf<com.relli.radio.data.SavedQueue?>(null) }
+    val offer by com.relli.radio.playback.Handoff.offer.collectAsState()
+    val playing by Playback.playing.collectAsState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        scope.launch {
-            val q = runCatching { RelliApp.api.playQueue() }.getOrNull() ?: return@launch
-            val fromElsewhere = q.changedBy != null && q.changedBy != com.relli.radio.data.Subsonic.CLIENT
-            if (fromElsewhere && q.changedAt > prefs.lastSync.value + 3_000 && !Playback.playing.value) offer = q
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            while (true) {
+                // While playing here, the playback service does this check itself.
+                if (!Playback.playing.value) com.relli.radio.playback.Handoff.check()
+                kotlinx.coroutines.delay(10_000)
+            }
         }
     }
+    if (playing && offer != null && !com.relli.radio.playback.Handoff.passive) return
     val q = offer ?: return
     val song = q.songs.firstOrNull { it.id == q.currentId } ?: q.songs.first()
     Row(
@@ -221,14 +293,13 @@ private fun HandoffBanner() {
                 style = androidx.compose.material3.MaterialTheme.typography.titleSmall, maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
-        com.relli.radio.ui.components.PillButton("Resume", null, primary = true) {
-            offer = null
+        com.relli.radio.ui.components.PillButton("Play here", null, primary = true) {
             scope.launch {
                 try { com.relli.radio.playback.PlayerHub.resumeFromServer() }
                 catch (e: Exception) { com.relli.radio.ui.components.toast(e.message ?: "Couldn't resume") }
             }
         }
-        com.relli.radio.ui.components.IconButton(onClick = { prefs.lastSync.value = q.changedAt; offer = null }) {
+        com.relli.radio.ui.components.IconButton(onClick = { com.relli.radio.playback.Handoff.dismiss() }) {
             Icon(androidx.compose.material.icons.Icons.Rounded.Close, "Not now", tint = Relli.muted)
         }
     }

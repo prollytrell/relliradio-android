@@ -69,7 +69,12 @@ object PlayerHub {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (!isPlaying) saveQueue(server = true)
+            if (isPlaying) {
+                // Playing here makes this the active device (see Handoff).
+                activeSince = System.currentTimeMillis()
+                Handoff.activeHere()
+                scope?.launch { Handoff.baseline() }
+            } else saveQueue(server = true)
         }
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) = setSession(audioSessionId)
@@ -85,6 +90,8 @@ object PlayerHub {
     // ---------- Play counts and periodic work ----------
 
     private var scrobbled = false
+    private var activeSince = 0L
+    private var lastHandoffCheck = 0L
     private var lastServerSave = 0L
 
     private suspend fun tick() {
@@ -100,6 +107,16 @@ object PlayerHub {
             }
             sleepTick()
             if (p.isPlaying && System.currentTimeMillis() - lastServerSave > 15_000) saveQueue(server = true)
+            // Another device took over? Pause here so the music moves instead of doubling up.
+            // (A 30-second grace period after starting lets both devices' saves land first.)
+            val now = System.currentTimeMillis()
+            if (p.isPlaying && now - activeSince > 30_000 && now - lastHandoffCheck > 10_000) {
+                lastHandoffCheck = now
+                if (Handoff.check() && p.isPlaying) {
+                    Handoff.tookOver()
+                    p.pause()
+                }
+            }
             delay(1000)
         }
     }
@@ -113,7 +130,7 @@ object PlayerHub {
         val items = queueSongs(p)
         val current = p.currentMediaItem?.takeIf { !it.isRadio }?.mediaId
         prefs.savedQueue = if (items.isEmpty()) null else SavedQueue(items.map { it.toSong() }, current, p.currentPosition)
-        if (server && items.isNotEmpty()) {
+        if (server && items.isNotEmpty() && !Handoff.passive) {
             lastServerSave = System.currentTimeMillis()
             prefs.lastSync.value = lastServerSave
             val ids = items.map { it.mediaId }
@@ -133,6 +150,7 @@ object PlayerHub {
     /** Takes over the queue saved on the server by another device. */
     suspend fun resumeFromServer(): Boolean {
         val q = api.playQueue() ?: return false
+        Handoff.pickedUp(q)
         val p = player ?: return false
         val idx = q.songs.indexOfFirst { it.id == q.currentId }.coerceAtLeast(0)
         p.setMediaItems(q.songs.map { it.toMediaItem() }, idx, q.positionMs)

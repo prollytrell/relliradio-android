@@ -1,0 +1,47 @@
+# RelliRadio web server.
+# One address serves both the app's files and Navidrome's API (/rest/...),
+# so the browser sees a single "origin" and never has to deal with CORS.
+
+(relliradio) {
+	encode zstd gzip
+
+	# Anything under /rest/ goes to Navidrome (reverse proxy).
+	handle /rest/* {
+		reverse_proxy {$NAVIDROME} {
+			flush_interval -1
+		}
+	}
+
+	# Everything else is the app itself.
+	handle {
+		root * /srv/relliradio
+		@fresh path / /index.html /sw.js /manifest.webmanifest
+		header @fresh Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}
+
+# HTTPS address, e.g. https://radio.prollytrell.duckdns.org
+# The certificate comes from Let's Encrypt through a DuckDNS TXT record (DNS-01 challenge).
+{$RELLI_DOMAIN} {
+	tls {
+		dns duckdns {$DUCKDNS_TOKEN}
+		resolvers 1.1.1.1 9.9.9.9
+	}
+	import relliradio
+}
+
+# Plain HTTP for a quick test on your home network: http://192.168.1.10:8088
+# Works in a desktop browser, but phones can't install the app without HTTPS.
+http://:8088 {
+	import relliradio
+}

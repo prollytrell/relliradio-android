@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>RelliRadio double R monogram</title>
+  <defs>
+    <linearGradient id="gold" x1="20" y1="23" x2="104" y2="106" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#96703D"/><stop offset=".22" stop-color="#F4DCA5"/><stop offset=".42" stop-color="#C49A57"/><stop offset=".58" stop-color="#F9E7B6"/><stop offset=".79" stop-color="#B58A46"/><stop offset="1" stop-color="#E1C184"/>
+    </linearGradient>
+    <linearGradient id="gold2" x1="100" y1="25" x2="46" y2="103" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EBD29A"/><stop offset=".38" stop-color="#B98E4E"/><stop offset=".65" stop-color="#F2DCA6"/><stop offset="1" stop-color="#AF8241"/>
+    </linearGradient>
+  </defs>
+  <path fill="#fff" fill-rule="evenodd" d="M13 28h31c27 0 31 31 7 38l22 29h6v4H57L34 67h-3v28h7v4H13v-4h6V32h-6v-4Zm18 5v29h9c19 0 19-29 0-29h-9Z" clip-rule="evenodd"/>
+  <path fill="#fff" fill-rule="evenodd" d="M55 28h31c27 0 31 31 7 38l22 29h6v4H99L76 67h-3v28h7v4H55v-4h6V32h-6v-4Zm18 5v29h9c19 0 19-29 0-29h-9Z" clip-rule="evenodd"/>
+  
+</svg>

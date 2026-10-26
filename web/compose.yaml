@@ -1,0 +1,21 @@
+services:
+  relliradio:
+    build: .
+    image: relliradio-caddy
+    container_name: relliradio
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"       # redirects plain http to https
+      - "443:443"     # https://radio.<you>.duckdns.org
+      - "443:443/udp" # HTTP/3
+      - "8088:8088"   # LAN-only test address
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./app:/srv/relliradio:ro
+      - caddy_data:/data       # certificates live here; keep this volume
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

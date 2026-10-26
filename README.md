@@ -1,3 +1,25 @@
+# RelliRadio
+
+Rell's self-hosted music app for Navidrome, in three forms that share one look and hand playback to each other:
+
+| Folder | What | Built by |
+| --- | --- | --- |
+| `app/` (root Gradle project) | Android phone and Android TV app | `.github/workflows/build.yml` → `build-N` releases |
+| `desktop/` | Windows and Linux app (Electron around the web app) | `.github/workflows/desktop.yml` → `desktop-N` releases |
+| `web/` | The web app (also runs in any browser via Caddy on the Pi) | Served by `web/compose.yaml` |
+
+## Desktop (Windows and Linux)
+
+Download from the newest **desktop-N** release on the Releases page:
+
+- **Windows:** `RelliRadio-…-x64.exe`. Windows warns that the publisher is unknown (the app isn't code-signed, which costs money every year): **More info → Run anyway**.
+- **Fedora:** the `.rpm`, then `sudo dnf install ./RelliRadio-*.rpm`. It appears in your app menu.
+- **Other Linux:** the `.AppImage`, then `chmod +x RelliRadio-*.AppImage` and run it.
+
+Sign in with `http://192.168.1.10:4533`. The desktop app talks to Navidrome directly, so it doesn't need the Caddy setup. Media keys and the system's media controls work (Windows media overlay, GNOME's media controls on Fedora).
+
+To try changes without building: `cd desktop && npm install && npm start`.
+
 # RelliRadio for Android
 
 A native Android app for your Navidrome server, built with Kotlin, Jetpack Compose and Media3 (Google's official media player). It has the same cocoa-and-gold look as the web app, but runs as a real app. That gives you things a web app can't do:
@@ -52,9 +74,15 @@ The same APK installs on Android-based TVs and streaming sticks (Chromecast with
 3. Open Downloader, enter the address of the latest release's `RelliRadio.apk` (or a short link to it), and install.
 4. Sign in with `http://192.168.1.10:4533`. Use the remote's arrows; the selected item has a gold outline.
 
-## Picking up on another device
+## Moving between devices
 
-Every device saves its queue and position to Navidrome while playing (every 15 seconds, and whenever you pause or skip). When you open RelliRadio on another device, a bar offers **Continue from <device>?** with the song and time. Tap **Resume** and it carries on from there. This works between the phone app, the TV app, and the desktop web app.
+Every device saves its queue and position to Navidrome while it plays (every 15 seconds, and whenever you pause or skip). Navidrome records which device saved last.
+
+- Any open RelliRadio that isn't playing checks every 10 seconds. If another device is playing, it shows **Playing on <device>** with **Play here**.
+- Tap **Play here** and the music continues from the same spot. Within about 30 seconds the other device notices and pauses itself, so it moves instead of playing in two rooms.
+- Pressing play on a device's own queue also makes it the active one.
+
+Works between the phone, TV and desktop apps (and the web app in a browser).
 
 ## Features
 

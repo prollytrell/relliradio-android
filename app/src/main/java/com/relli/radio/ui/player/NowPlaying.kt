@@ -72,6 +72,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -140,6 +142,10 @@ fun NowPlaying() {
 
     BackHandler { if (queueOpen) queueOpen = false else Nav.playerOpen.value = false }
 
+    // TV remotes start on the play button, so the arrows can reach everything from there.
+    val playFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { delay(350); runCatching { playFocus.requestFocus() } }
+
     val bg by animateColorAsState(tone.bg, tween(700), label = "bg")
     val deep by animateColorAsState(tone.deep, tween(700), label = "deep")
     val btn by animateColorAsState(tone.button, tween(700), label = "btn")
@@ -178,13 +184,15 @@ fun NowPlaying() {
                             "queue" -> QueuePanel(onSave = { sheet = "save" }, onSmart = { sheet = "smart" })
                             "lyrics" -> lyrics?.let { LyricsPanel(it) }
                             "visualizer" -> VisualizerPanel()
-                            else -> Box(
+                            else -> BoxWithConstraints(
                                 Modifier.fillMaxSize().pointerInput(Unit) {
                                     detectVerticalDragGestures { _, dy -> if (dy > 40) Nav.playerOpen.value = false }
                                 },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Cover(song.coverArt ?: song.albumId, Modifier.fillMaxWidth().aspectRatio(1f).shadow(30.dp, RoundedCornerShape(22.dp)), 800, RoundedCornerShape(22.dp))
+                                // As big as fits, in either direction (phones are tall, TVs are wide).
+                                val side = if (maxWidth < maxHeight) maxWidth else maxHeight
+                                Cover(song.coverArt ?: song.albumId, Modifier.size(side).shadow(30.dp, RoundedCornerShape(22.dp)), 800, RoundedCornerShape(22.dp))
                             }
                         }
                     }
@@ -216,7 +224,7 @@ fun NowPlaying() {
                         }
 
                         // Waveform seek bar and times
-                        WaveSeek(song.id, position, duration, radio, onSeek = { Playback.seekTo(it) })
+                        WaveSeek(song.id, position, duration, radio, onSeek = { Playback.seekTo(it.coerceIn(0L, duration)) })
                         Row(Modifier.fillMaxWidth()) {
                             Text(fmtTime(position / 1000), style = MaterialTheme.typography.labelMedium, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.weight(1f))
                             Text(if (radio) "Live" else qualityLabel(song, Playback.maxBitRate()), style = MaterialTheme.typography.labelMedium, color = Relli.cream.copy(alpha = 0.85f))
@@ -229,7 +237,8 @@ fun NowPlaying() {
                             ModeButton(if (repeat == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, "Repeat", repeat != Player.REPEAT_MODE_OFF, !radio) { Playback.cycleRepeat() }
                             IconButton(onClick = { Playback.prev() }, enabled = !radio, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.SkipPrevious, "Previous", tint = Relli.cream, modifier = Modifier.size(36.dp)) }
                             Box(
-                                Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp)).background(btn).clickable { Playback.toggle() },
+                                Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp)).background(btn)
+                                    .focusRequester(playFocus).clickable { Playback.toggle() },
                                 contentAlignment = Alignment.Center,
                             ) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", tint = Relli.cream, modifier = Modifier.size(40.dp)) }
                             IconButton(onClick = { Playback.next() }, enabled = !radio, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.SkipNext, "Next", tint = Relli.cream, modifier = Modifier.size(36.dp)) }
@@ -265,15 +274,16 @@ fun NowPlaying() {
                 }
 
                 if (wide) {
-                    // Tablets and landscape: cover and controls on the left, lyrics/visualizer/queue on the right.
-                    Row(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
-                        Column(Modifier.weight(0.9f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
-                            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                Cover(song.coverArt ?: song.albumId, Modifier.widthIn(max = 460.dp).fillMaxWidth().aspectRatio(1f), 800, RoundedCornerShape(22.dp))
-                            }
-                            controls(Modifier.widthIn(max = 460.dp).padding(top = 18.dp))
+                    // TVs, tablets, landscape: the visual (cover, lyrics, visualizer or queue) on the left,
+                    // everything you control on the right, sized to fit the screen.
+                    Row(
+                        Modifier.fillMaxSize().padding(start = 40.dp, end = 40.dp, bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(48.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        stage(Modifier.weight(1f).fillMaxHeight())
+                        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                            controls(Modifier.widthIn(max = 560.dp).fillMaxWidth())
                         }
-                        stage(Modifier.weight(1.1f).fillMaxHeight())
                     }
                 } else {
                     stage(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp))
