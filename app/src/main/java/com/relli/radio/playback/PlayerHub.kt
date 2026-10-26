@@ -65,7 +65,7 @@ object PlayerHub {
             item?.takeIf { !it.isRadio }?.let { scope?.launch { api.scrobble(it.mediaId, false) } }
             if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) applyFlow(item)
             topUp()
-            saveQueue(server = false)
+            saveQueue(server = true)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -99,7 +99,7 @@ object PlayerHub {
                 }
             }
             sleepTick()
-            if (p.isPlaying && System.currentTimeMillis() - lastServerSave > 30_000) saveQueue(server = true)
+            if (p.isPlaying && System.currentTimeMillis() - lastServerSave > 15_000) saveQueue(server = true)
             delay(1000)
         }
     }
@@ -115,6 +115,7 @@ object PlayerHub {
         prefs.savedQueue = if (items.isEmpty()) null else SavedQueue(items.map { it.toSong() }, current, p.currentPosition)
         if (server && items.isNotEmpty()) {
             lastServerSave = System.currentTimeMillis()
+            prefs.lastSync.value = lastServerSave
             val ids = items.map { it.mediaId }
             val pos = p.currentPosition
             scope?.launch { api.savePlayQueue(ids, current, pos) }
@@ -137,6 +138,7 @@ object PlayerHub {
         p.setMediaItems(q.songs.map { it.toMediaItem() }, idx, q.positionMs)
         p.prepare()
         p.play()
+        prefs.lastSync.value = System.currentTimeMillis()
         return true
     }
 

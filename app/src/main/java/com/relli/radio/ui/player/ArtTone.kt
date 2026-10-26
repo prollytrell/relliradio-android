@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 data class Tone(val bg: Color, val deep: Color, val button: Color, val pill: Color)
 
 object ArtTone {
-    val default = Tone(Color(0xFF3A2A20), Relli.bgDeep, Relli.gold, Relli.raise)
+    val default = Tone(Color(0xFF3A2A20), Relli.bgDeep, Color(0xFF6E5228), Relli.raise)
     private val _tone = MutableStateFlow(default)
     val tone: StateFlow<Tone> get() = _tone
     private var lastId: String? = null
@@ -47,6 +47,6 @@ object ArtTone {
             val c = floatArrayOf(hsl[0], hsl[1].coerceAtMost(sMax), l)
             return Color(ColorUtils.HSLToColor(c))
         }
-        return Tone(bg = make(0.30f, 0.21f), deep = make(0.24f, 0.10f), button = make(0.26f, 0.60f), pill = make(0.20f, 0.33f))
+        return Tone(bg = make(0.30f, 0.21f), deep = make(0.24f, 0.10f), button = make(0.30f, 0.40f), pill = make(0.20f, 0.33f))
     }
 }

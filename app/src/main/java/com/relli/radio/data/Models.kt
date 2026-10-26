@@ -94,4 +94,11 @@ data class Starred(val songs: List<Song>, val albums: List<Album>, val artists: 
 data class SearchResult(val artists: List<Artist>, val albums: List<Album>, val songs: List<Song>)
 data class LyricLine(val startMs: Long?, val text: String)
 data class Lyrics(val synced: Boolean, val lines: List<LyricLine>)
-data class SavedQueue(val songs: List<Song>, val currentId: String?, val positionMs: Long)
+data class SavedQueue(
+    val songs: List<Song>,
+    val currentId: String?,
+    val positionMs: Long,
+    /** Which app/device saved it (for example "RelliRadio (Pixel 8)") and when, in milliseconds. */
+    val changedBy: String? = null,
+    val changedAt: Long = 0,
+)

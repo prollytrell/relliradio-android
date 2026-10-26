@@ -77,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -174,7 +175,7 @@ fun ToggleRow(label: String, checked: Boolean, hint: String? = null, onChange: (
             if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = Relli.muted)
         }
         Switch(checked, onChange, colors = SwitchDefaults.colors(
-            checkedThumbColor = Relli.onGold, checkedTrackColor = Relli.gold,
+            checkedThumbColor = Relli.cream, checkedTrackColor = Color(0xFF8A6A34),
             uncheckedThumbColor = Relli.muted, uncheckedTrackColor = Relli.line, uncheckedBorderColor = Relli.line,
         ))
     }
@@ -194,7 +195,7 @@ fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<F
 @Composable
 fun sliderColors() = SliderDefaults.colors(
     thumbColor = Relli.cream, activeTrackColor = Relli.gold, inactiveTrackColor = Relli.line,
-    activeTickColor = Relli.onGold, inactiveTickColor = Relli.faint,
+    activeTickColor = Relli.cream, inactiveTickColor = Relli.faint,
 )
 
 @Composable

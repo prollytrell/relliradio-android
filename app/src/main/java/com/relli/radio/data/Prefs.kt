@@ -78,6 +78,9 @@ class Prefs(context: Context) {
             sp.edit().putString("queue", v?.let { json.encodeToString(StoredQueue(it.songs.take(500), it.currentId, it.positionMs)) }).apply()
         }
 
+    /** When this device last saved the queue to the server (milliseconds). */
+    val lastSync = Pref("lastSync", 0L, { k, d -> sp.getLong(k, d) }, { k, v -> putLong(k, v) })
+
     val credentials: Credentials?
         get() = if (server.value.isBlank() || user.value.isBlank()) null else Credentials(server.value, user.value, password.value)
 

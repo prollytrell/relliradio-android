@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV home-screen banner (320x180). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z" android:fillColor="#FF1B1410"/>
+    <group android:scaleX="1.1" android:scaleY="1.1" android:translateX="90" android:translateY="20">
+<path android:pathData="M13,28h31c27,0 31,31 7,38l22,29h6v4H57L34,67h-3v28h7v4H13v-4h6V32h-6v-4Zm18,5v29h9c19,0 19,-29 0,-29h-9Z" android:fillType="evenOdd">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="20" android:startY="23" android:endX="104" android:endY="106">
+                <item android:offset="0" android:color="#FF96703D"/>
+                <item android:offset="0.22" android:color="#FFF4DCA5"/>
+                <item android:offset="0.42" android:color="#FFC49A57"/>
+                <item android:offset="0.58" android:color="#FFF9E7B6"/>
+                <item android:offset="0.79" android:color="#FFB58A46"/>
+                <item android:offset="1" android:color="#FFE1C184"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M55,28h31c27,0 31,31 7,38l22,29h6v4H99L76,67h-3v28h7v4H55v-4h6V32h-6v-4Zm18,5v29h9c19,0 19,-29 0,-29h-9Z" android:fillType="evenOdd">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="100" android:startY="25" android:endX="46" android:endY="103">
+                <item android:offset="0" android:color="#FFEBD29A"/>
+                <item android:offset="0.38" android:color="#FFB98E4E"/>
+                <item android:offset="0.65" android:color="#FFF2DCA6"/>
+                <item android:offset="1" android:color="#FFAF8241"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M55,80l6,8v7h-5l-1,-15Z" android:fillColor="#FF231812"/>
+        </group>
+</vector>

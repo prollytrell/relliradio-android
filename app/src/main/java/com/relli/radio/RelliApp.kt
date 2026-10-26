@@ -31,6 +31,8 @@ class RelliApp : Application(), ImageLoaderFactory {
         .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.2).build() }
         .diskCache { DiskCache.Builder().directory(cacheDir.resolve("art")).maxSizeBytes(300L * 1024 * 1024).build() }
         .crossfade(true)
+        // Keep art cached even if the server says not to; covers rarely change.
+        .respectCacheHeaders(false)
         .build()
 
     /** Streaming bitrate for the current network: Wi-Fi setting or mobile-data setting. */

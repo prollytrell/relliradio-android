@@ -1,6 +1,21 @@
 package com.relli.radio.ui.player
 
 import android.Manifest
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
 import android.content.pm.PackageManager
 import android.media.audiofx.Visualizer
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,7 +47,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.relli.radio.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -139,9 +154,15 @@ fun LyricsPanel(lyrics: Lyrics, modifier: Modifier = Modifier) {
     LaunchedEffect(lyrics) { while (true) { pos = Playback.position; delay(200) } }
     val active = if (lyrics.synced) lyrics.lines.indexOfLast { (it.startMs ?: Long.MAX_VALUE) <= pos + 250 } else -1
     val list = rememberLazyListState()
-    LaunchedEffect(active) { if (active >= 0) list.animateScrollToItem(active, -280) }
+    // Following stops when you scroll the lyrics yourself; the button below brings it back.
+    var follow by remember(lyrics) { mutableStateOf(true) }
+    LaunchedEffect(list) {
+        list.interactionSource.interactions.collect { if (it is DragInteraction.Start) follow = false }
+    }
+    LaunchedEffect(active, follow) { if (follow && active >= 0) list.animateScrollToItem(active, -280) }
     val size = when (RelliApp.prefs.lyricsSize.value) { "s" -> 22; "l" -> 34; else -> 28 }
-    LazyColumn(modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(vertical = 140.dp)) {
+    Box(modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(vertical = 140.dp)) {
         itemsIndexed(lyrics.lines) { i, line ->
             val color by animateColorAsState(
                 when {
@@ -159,10 +180,22 @@ fun LyricsPanel(lyrics: Lyrics, modifier: Modifier = Modifier) {
                 fontSize = (if (lyrics.synced) size else (size * 0.66f).toInt()).sp,
                 lineHeight = ((if (lyrics.synced) size else (size * 0.66f).toInt()) * 1.25f).sp,
                 modifier = Modifier.fillMaxWidth()
-                    .then(if (line.startMs != null) Modifier.clickable { Playback.seekTo(line.startMs) } else Modifier)
+                    .then(if (line.startMs != null) Modifier.clickable { Playback.seekTo(line.startMs); follow = true } else Modifier)
                     .padding(vertical = if (lyrics.synced) 7.dp else 3.dp),
             )
         }
+    }
+    if (!follow && lyrics.synced) {
+        Row(
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp).clip(CircleShape).background(Relli.goldMetal)
+                .clickable { follow = true }.padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.MyLocation, null, tint = Relli.onGold, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Back to current line", style = MaterialTheme.typography.labelLarge, color = Relli.onGold)
+        }
+    }
     }
 }
 
@@ -190,7 +223,8 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                 setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(v: Visualizer?, data: ByteArray?, rate: Int) {
                         data ?: return
-                        val out = FloatArray(128) { i -> ((data[i * data.size / 128].toInt() and 0xFF) - 128) / 128f }
+                        // Boost quiet passages so the line always moves.
+                        val out = FloatArray(128) { i -> (((data[i * data.size / 128].toInt() and 0xFF) - 128) / 128f * 2.2f).coerceIn(-1f, 1f) }
                         wave = out
                     }
                     override fun onFftDataCapture(v: Visualizer?, data: ByteArray?, rate: Int) {
@@ -205,12 +239,18 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                                 val re = data[2 * k].toFloat(); val im = data[2 * k + 1].toFloat()
                                 m = maxOf(m, kotlin.math.sqrt(re * re + im * im))
                             }
-                            val db = (20 * kotlin.math.log10(m + 1f) / 42f).coerceIn(0f, 1f)
-                            smooth[b] = if (db > smooth[b]) db else smooth[b] * 0.82f + db * 0.18f
+                            // More sensitive: lower ceiling, a lift for the treble end, and a curve that
+                            // makes small changes visible. Bars jump up fast and fall back smoothly.
+                            val tilt = 1f + b / 48f * 0.6f
+                            val level = (20 * kotlin.math.log10(m + 1f) / 30f * tilt).coerceIn(0f, 1f)
+                            val db = Math.pow(level.toDouble(), 0.75).toFloat()
+                            smooth[b] = if (db > smooth[b]) smooth[b] * 0.25f + db * 0.75f else smooth[b] * 0.88f + db * 0.12f
                         }
                         fft = smooth.copyOf()
                     }
                 }, Visualizer.getMaxCaptureRate(), true, true)
+                // Measure the sound before the volume control, so quiet listening still moves the bars.
+                runCatching { setScalingMode(Visualizer.SCALING_MODE_NORMALIZED) }
                 setEnabled(true)
             }
             onDispose { runCatching { viz?.setEnabled(false); viz?.release() } }
@@ -237,7 +277,7 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                             val path = Path()
                             wave.forEachIndexed { i, v ->
                                 val x = i / (wave.size - 1f) * size.width
-                                val y = size.height / 2 + v * size.height * 0.38f
+                                val y = size.height / 2 + v * size.height * 0.45f
                                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                             }
                             drawPath(path, brush, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
@@ -282,12 +322,64 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
 }
 
 // ---------- Queue ----------
+// Tap a song to play it. Press and hold, then drag, to move it anywhere in the queue.
+
+private class Entry(val uid: Long, val item: MediaItem)
 
 @Composable
 fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () -> Unit) {
     val queue by Playback.queue.collectAsState()
     val index by Playback.index.collectAsState()
     val list = rememberLazyListState(initialFirstVisibleItemIndex = index.coerceAtLeast(0))
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+
+    // A local copy of the queue with stable ids, so a row keeps its identity while it's dragged.
+    val entries = remember { mutableStateListOf<Entry>() }
+    var nextUid by remember { mutableLongStateOf(0L) }
+    var dragging by remember { mutableStateOf<Long?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragFrom by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(queue) {
+        if (dragging == null) {
+            entries.clear()
+            queue.forEach { entries.add(Entry(nextUid++, it)) }
+        }
+    }
+
+    fun onDrag(dy: Float) {
+        val uid = dragging ?: return
+        dragOffset += dy
+        val info = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == uid } ?: return
+        val center = info.offset + dragOffset + info.size / 2f
+        val target = list.layoutInfo.visibleItemsInfo.firstOrNull {
+            it.key != uid && center > it.offset && center < it.offset + it.size
+        }
+        if (target != null) {
+            val from = entries.indexOfFirst { it.uid == uid }
+            val to = target.index
+            if (from >= 0 && to in entries.indices) {
+                entries.add(to, entries.removeAt(from))
+                dragOffset += (info.offset - target.offset).toFloat()
+            }
+        }
+        // Scroll when the row is dragged near the top or bottom edge.
+        val top = list.layoutInfo.viewportStartOffset
+        val bottom = list.layoutInfo.viewportEndOffset
+        if (center > bottom - 120) scope.launch { list.scrollBy(24f) }
+        else if (center < top + 120) scope.launch { list.scrollBy(-24f) }
+    }
+
+    fun endDrag() {
+        val uid = dragging ?: return
+        val to = entries.indexOfFirst { it.uid == uid }
+        if (dragFrom >= 0 && to >= 0 && dragFrom != to) Playback.move(dragFrom, to)
+        dragging = null
+        dragOffset = 0f
+        dragFrom = -1
+    }
+
     Column(modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Up next", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
@@ -295,25 +387,60 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
             Text("Save", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable(onClick = onSave).padding(8.dp))
             Text("Clear", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable { Playback.clearUpcoming() }.padding(8.dp))
         }
+        Text("Press and hold a song, then drag to move it.", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.55f), modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
         LazyColumn(state = list, modifier = Modifier.weight(1f)) {
-            itemsIndexed(queue, key = { i, item -> "$i-${item.mediaId}" }) { i, item ->
-                QueueRow(item, i == index, onClick = { if (i != index) Playback.jump(i) }, onRemove = { Playback.remove(i) },
-                    onLongPress = { if (i > index + 1) Playback.move(i, index + 1) })
+            itemsIndexed(entries, key = { _, e -> e.uid }) { i, e ->
+                val isDragged = dragging == e.uid
+                val now = e.item.mediaId == queue.getOrNull(index)?.mediaId && (dragging != null || i == index)
+                Box(
+                    Modifier
+                        .zIndex(if (isDragged) 1f else 0f)
+                        .graphicsLayer { translationY = if (isDragged) dragOffset else 0f; shadowElevation = if (isDragged) 16f else 0f }
+                        .pointerInput(e.uid) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    dragging = e.uid
+                                    dragOffset = 0f
+                                    dragFrom = entries.indexOfFirst { it.uid == e.uid }
+                                },
+                                onDragEnd = { endDrag() },
+                                onDragCancel = { endDrag() },
+                            ) { change, amount -> change.consume(); onDrag(amount.y) }
+                        }
+                        // Taps play the song; a long press belongs to the drag above.
+                        .pointerInput(e.uid) {
+                            detectTapGestures(onLongPress = {}) {
+                                val at = entries.indexOfFirst { it.uid == e.uid }
+                                if (at >= 0 && at != index) Playback.jump(at)
+                            }
+                        }
+                ) {
+                    QueueRow(e.item, now = now, lifted = isDragged,
+                        onRemove = { val at = entries.indexOfFirst { it.uid == e.uid }; if (at >= 0) Playback.remove(at) })
+                }
             }
         }
     }
 }
 
 @Composable
-private fun QueueRow(item: MediaItem, now: Boolean, onClick: () -> Unit, onRemove: () -> Unit, onLongPress: () -> Unit) {
+private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, onRemove: () -> Unit) {
     val song: Song = remember(item) { item.toSong() }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .background(if (now) Relli.cream.copy(alpha = 0.1f) else Color.Transparent)
-            .pointerInput(item) { detectTapGestures(onTap = { onClick() }, onLongPress = { onLongPress() }) }
+            .background(
+                when {
+                    lifted -> Relli.raise
+                    now -> Relli.cream.copy(alpha = 0.1f)
+                    else -> Color.Transparent
+                }
+            )
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(Icons.Rounded.DragHandle, null, tint = Relli.cream.copy(alpha = if (lifted) 0.9f else 0.35f), modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
         Cover(song.coverArt ?: song.albumId, Modifier.size(46.dp), 120, RoundedCornerShape(8.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

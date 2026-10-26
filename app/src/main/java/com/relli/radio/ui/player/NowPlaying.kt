@@ -52,7 +52,7 @@ import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.relli.radio.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -231,7 +231,7 @@ fun NowPlaying() {
                             Box(
                                 Modifier.size(84.dp).shadow(14.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp)).background(btn).clickable { Playback.toggle() },
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", tint = Color(0xFF17110D), modifier = Modifier.size(40.dp)) }
+                            ) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", tint = Relli.cream, modifier = Modifier.size(40.dp)) }
                             IconButton(onClick = { Playback.next() }, enabled = !radio, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.SkipNext, "Next", tint = Relli.cream, modifier = Modifier.size(36.dp)) }
                             ModeButton(Icons.Rounded.Shuffle, "Shuffle", shuffle, !radio) { Playback.setShuffle(!shuffle) }
                         }

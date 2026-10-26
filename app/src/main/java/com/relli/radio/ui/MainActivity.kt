@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
@@ -48,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
+import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -79,7 +81,13 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         if (intent?.getBooleanExtra(EXTRA_OPEN_PLAYER, false) == true) Nav.playerOpen.value = true
-        setContent { RelliTheme { Root() } }
+        // Phones stay upright; TVs and tablets can use landscape.
+        val isTv = (getSystemService(UI_MODE_SERVICE) as android.app.UiModeManager).currentModeType ==
+            android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+        if (!isTv && resources.configuration.smallestScreenWidthDp < 600) {
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+        setContent { RelliTheme { com.relli.radio.ui.components.FocusRings { Root() } } }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -96,7 +104,8 @@ class MainActivity : ComponentActivity() {
 private fun Root() {
     val prefs = RelliApp.prefs
     var signedIn by remember { mutableStateOf(prefs.credentials != null && prefs.password.value.isNotEmpty()) }
-    Box(Modifier.fillMaxSize().background(Relli.bg)) {
+    // Surface sets cream as the default text color for everything inside it.
+    androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = Relli.bg, contentColor = Relli.cream) {
         if (!signedIn) LoginScreen { signedIn = true }
         else AppShell(onSignOut = { signedIn = false })
     }
@@ -153,6 +162,7 @@ private fun AppShell(onSignOut: () -> Unit) {
                 .navigationBarsPadding()
                 .onSizeChanged { bottomHeight = with(density) { it.height.toDp() } },
         ) {
+            HandoffBanner()
             MiniPlayer(Modifier.padding(top = 10.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TABS.forEach { tab ->
@@ -178,5 +188,48 @@ private fun AppShell(onSignOut: () -> Unit) {
             enter = slideInVertically(tween(280)) { it },
             exit = slideOutVertically(tween(240)) { it },
         ) { NowPlaying() }
+    }
+}
+
+/**
+ * "Pick up where you left off": when you open the app and another device (the desktop web app,
+ * the TV, another phone) saved its queue to Navidrome more recently, offer to continue from there.
+ */
+@Composable
+private fun HandoffBanner() {
+    val prefs = RelliApp.prefs
+    var offer by remember { mutableStateOf<com.relli.radio.data.SavedQueue?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        scope.launch {
+            val q = runCatching { RelliApp.api.playQueue() }.getOrNull() ?: return@launch
+            val fromElsewhere = q.changedBy != null && q.changedBy != com.relli.radio.data.Subsonic.CLIENT
+            if (fromElsewhere && q.changedAt > prefs.lastSync.value + 3_000 && !Playback.playing.value) offer = q
+        }
+    }
+    val q = offer ?: return
+    val song = q.songs.firstOrNull { it.id == q.currentId } ?: q.songs.first()
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+            .background(Relli.raise).padding(start = 14.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+            androidx.compose.material3.Text("Continue from ${q.changedBy?.removePrefix("RelliRadio")?.trim()?.trim('(', ')')?.ifBlank { null } ?: "your other device"}?",
+                style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = Relli.gold)
+            androidx.compose.material3.Text("${song.title} · ${com.relli.radio.ui.components.fmtTime(q.positionMs / 1000)}",
+                style = androidx.compose.material3.MaterialTheme.typography.titleSmall, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+        com.relli.radio.ui.components.PillButton("Resume", null, primary = true) {
+            offer = null
+            scope.launch {
+                try { com.relli.radio.playback.PlayerHub.resumeFromServer() }
+                catch (e: Exception) { com.relli.radio.ui.components.toast(e.message ?: "Couldn't resume") }
+            }
+        }
+        com.relli.radio.ui.components.IconButton(onClick = { prefs.lastSync.value = q.changedAt; offer = null }) {
+            Icon(androidx.compose.material.icons.Icons.Rounded.Close, "Not now", tint = Relli.muted)
+        }
     }
 }

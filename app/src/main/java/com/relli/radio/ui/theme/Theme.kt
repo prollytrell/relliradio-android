@@ -30,9 +30,11 @@ object Relli {
     val faint = Color(0xFF86735F)
     val gold = Color(0xFFD4AF6A)
     val goldSoft = Color(0x29D4AF6A)
-    val onGold = Color(0xFF241A0E)
+    /** Text and icons on gold fills. Cream, never dark, so everything stays readable. */
+    val onGold = Color(0xFFF3E7D3)
+    /** Selected chips, the active tab, primary buttons: a deep bronze-gold that keeps cream text readable. */
     val goldMetal = Brush.linearGradient(
-        0f to Color(0xFFF4DFA8), 0.38f to Color(0xFFD2AD62), 0.7f to Color(0xFFA8823E), 1f to Color(0xFFE3C47E),
+        0f to Color(0xFF7A5C2C), 0.4f to Color(0xFF5C4420), 0.75f to Color(0xFF4A3619), 1f to Color(0xFF6E5228),
     )
 }
 

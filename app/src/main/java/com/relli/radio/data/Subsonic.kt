@@ -57,13 +57,36 @@ class Subsonic(private val creds: () -> Credentials?) {
             .addQueryParameter("t", md5(cr.password + s))
             .addQueryParameter("s", s)
             .addQueryParameter("v", "1.16.1")
-            .addQueryParameter("c", "RelliRadio-Android")
+            .addQueryParameter("c", CLIENT)
             .addQueryParameter("f", "json")
         params.forEach { (k, v) -> if (v != null) b.addQueryParameter(k, v.toString()) }
         return b.build()
     }
 
-    private suspend fun call(method: String, vararg params: Pair<String, Any?>, c: Credentials? = null): JsonObject =
+    // ---------- Short-term memory of library reads ----------
+    // Going back to an album or artist you just saw is instant instead of asking the server again.
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, JsonObject>>()
+    private val cacheable = setOf("getAlbum", "getArtist", "getArtists", "getArtistInfo2", "getTopSongs", "getGenres",
+        "getAlbumList2", "getPlaylists", "getPlaylist", "getStarred2", "getInternetRadioStations", "getLyricsBySongId", "getSong")
+    private val changesLibrary = setOf("star", "unstar", "setRating", "createPlaylist", "updatePlaylist", "deletePlaylist")
+    private val cacheTtlMs = 10 * 60_000L
+
+    fun clearCache() = cache.clear()
+
+    private suspend fun call(method: String, vararg params: Pair<String, Any?>, c: Credentials? = null): JsonObject {
+        val random = params.any { it.first == "type" && it.second == "random" }
+        val key = if (method in cacheable && !random && c == null) method + params.joinToString("&") { "${it.first}=${it.second}" } else null
+        if (key != null) cache[key]?.let { (at, value) -> if (System.currentTimeMillis() - at < cacheTtlMs) return value }
+        if (method in changesLibrary) cache.clear()
+        val result = fetch(method, params, c)
+        if (key != null) {
+            if (cache.size > 300) cache.clear()
+            cache[key] = System.currentTimeMillis() to result
+        }
+        return result
+    }
+
+    private suspend fun fetch(method: String, params: Array<out Pair<String, Any?>>, c: Credentials?): JsonObject =
         withContext(Dispatchers.IO) {
             val u = url(method, params.toList(), c ?: creds())
             val res = try {
@@ -184,6 +207,7 @@ class Subsonic(private val creds: () -> Credentials?) {
     suspend fun removeFromPlaylist(id: String, index: Int) { call("updatePlaylist", "playlistId" to id, "songIndexToRemove" to index) }
 
     private fun rawCall(method: String, params: List<Pair<String, Any?>>) {
+        cache.clear()
         val res = http.newCall(Request.Builder().url(url(method, params)).build()).execute()
         res.use {
             val r = json.parseToJsonElement(it.body!!.string()).jsonObject["subsonic-response"]?.jsonObject
@@ -209,7 +233,10 @@ class Subsonic(private val creds: () -> Credentials?) {
         val q = call("getPlayQueue")["playQueue"]?.jsonObject ?: return null
         val songs = q["entry"].list<Song>()
         if (songs.isEmpty()) return null
-        return SavedQueue(songs, q["current"]?.jsonPrimitive?.contentOrNull, q["position"]?.jsonPrimitive?.longOrNull ?: 0)
+        val changed = q["changed"]?.jsonPrimitive?.contentOrNull
+        val at = changed?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() } ?: 0L
+        return SavedQueue(songs, q["current"]?.jsonPrimitive?.contentOrNull, q["position"]?.jsonPrimitive?.longOrNull ?: 0,
+            q["changedBy"]?.jsonPrimitive?.contentOrNull, at)
     }
 
     suspend fun lyrics(song: Song): Lyrics? {
@@ -245,6 +272,9 @@ class Subsonic(private val creds: () -> Credentials?) {
     fun downloadUrl(id: String): String = url("download", listOf("id" to id)).toString()
 
     companion object {
+        /** How this device names itself to Navidrome, so other devices can say where to pick up from. */
+        val CLIENT: String = "RelliRadio (${android.os.Build.MODEL})"
+
         private val lrcTime = Regex("""\[(\d+):(\d+(?:\.\d+)?)]""")
         fun parseLrc(text: String): Lyrics {
             val out = mutableListOf<LyricLine>()

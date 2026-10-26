@@ -38,7 +38,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.relli.radio.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

@@ -50,7 +50,7 @@ fun fieldColors() = OutlinedTextFieldDefaults.colors(
 @Composable
 fun LoginScreen(onDone: () -> Unit) {
     val prefs = RelliApp.prefs
-    var server by remember { mutableStateOf(prefs.server.value.ifEmpty { "https://radio.prollytrell.duckdns.org" }) }
+    var server by remember { mutableStateOf(prefs.server.value.ifEmpty { "http://192.168.1.10:4533" }) }
     var user by remember { mutableStateOf(prefs.user.value) }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -61,7 +61,11 @@ fun LoginScreen(onDone: () -> Unit) {
         if (busy) return
         busy = true; error = null
         var address = server.trim().trimEnd('/')
-        if (!address.startsWith("http")) address = "https://$address"
+        // Local addresses (192.168.x.x, Navidrome's :4533 port) use plain http; names use https.
+        if (!address.startsWith("http")) {
+            val local = Regex("""^(\d{1,3}\.){3}\d{1,3}(:\d+)?(/.*)?$""").matches(address) || address.contains(":4533")
+            address = (if (local) "http://" else "https://") + address
+        }
         val creds = Credentials(address, user.trim(), password)
         scope.launch {
             try {
@@ -98,7 +102,7 @@ fun LoginScreen(onDone: () -> Unit) {
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() }), modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = androidx.compose.ui.graphics.Color(0xFFF0A58F), style = MaterialTheme.typography.titleSmall) }
             PillButton(if (busy) "Signing in…" else "Sign in", null, primary = true, modifier = Modifier.fillMaxWidth()) { submit() }
-            Text("Away from home? Turn on WireGuard first.", color = Relli.faint, style = MaterialTheme.typography.bodySmall)
+            Text("Away from home? Turn on WireGuard first; the same address works through the VPN.", color = Relli.faint, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
