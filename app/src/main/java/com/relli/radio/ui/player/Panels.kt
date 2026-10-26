@@ -461,7 +461,7 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
             Text("Save", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable(onClick = onSave).padding(8.dp))
             Text("Clear", style = MaterialTheme.typography.labelLarge, color = Relli.cream.copy(alpha = 0.75f), modifier = Modifier.clickable { Playback.clearUpcoming() }.padding(8.dp))
         }
-        Text(if (tv) "Use the arrows next to a song to move it." else "Press and hold a song, then drag to move it.", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.55f), modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
+        Text(if (tv) "Select a song to play it. Use the arrows next to it to move it, or X to remove it." else "Press and hold a song, then drag to move it.", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.55f), modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
         LazyColumn(state = list, modifier = Modifier.weight(1f)) {
             itemsIndexed(entries, key = { _, e -> e.uid }) { i, e ->
                 val isDragged = dragging == e.uid
@@ -470,11 +470,8 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
                     Modifier
                         .zIndex(if (isDragged) 1f else 0f)
                         .graphicsLayer { translationY = if (isDragged) dragOffset else 0f; shadowElevation = if (isDragged) 16f else 0f }
-                        // TV: the row is a normal selectable item (OK plays it); moving uses the arrow buttons.
-                        .then(if (tv) Modifier.clickable {
-                            val at = entries.indexOfFirst { it.uid == e.uid }
-                            if (at >= 0 && at != index) Playback.jump(at)
-                        } else Modifier)
+                        // TV: the row itself isn't selectable (that would hide its buttons from the remote);
+                        // the song part and each button are separate stops instead. Phone: press-and-drag.
                         .then(if (tv) Modifier else Modifier.pointerInput(e.uid) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
@@ -498,6 +495,7 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
                         })
                 ) {
                     QueueRow(e.item, now = now, lifted = isDragged, tv = tv,
+                        onPlay = { val at = entries.indexOfFirst { it.uid == e.uid }; if (at >= 0 && at != index) Playback.jump(at) },
                         onMove = { dir ->
                             val at = entries.indexOfFirst { it.uid == e.uid }
                             val to = at + dir
@@ -511,7 +509,7 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
 }
 
 @Composable
-private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, tv: Boolean, onMove: (Int) -> Unit, onRemove: () -> Unit) {
+private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, tv: Boolean, onPlay: () -> Unit, onMove: (Int) -> Unit, onRemove: () -> Unit) {
     val song: Song = remember(item) { item.toSong() }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
@@ -529,13 +527,20 @@ private fun QueueRow(item: MediaItem, now: Boolean, lifted: Boolean, tv: Boolean
             Icon(Icons.Rounded.DragHandle, null, tint = Relli.cream.copy(alpha = if (lifted) 0.9f else 0.35f), modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(6.dp))
         }
-        Cover(song.coverArt ?: song.albumId, Modifier.size(46.dp), 120, RoundedCornerShape(8.dp))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.isSmart) Icon(Icons.Rounded.AutoAwesome, "Added by Smart queue", tint = Relli.gold, modifier = Modifier.size(13.dp).padding(end = 3.dp))
-                Text(song.artist ?: "", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // On TV this part is its own stop for the remote (OK plays the song), next to the buttons.
+        Row(
+            Modifier.weight(1f)
+                .then(if (tv) Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onPlay).padding(4.dp) else Modifier),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Cover(song.coverArt ?: song.albumId, Modifier.size(46.dp), 120, RoundedCornerShape(8.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(song.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (item.isSmart) Icon(Icons.Rounded.AutoAwesome, "Added by Smart queue", tint = Relli.gold, modifier = Modifier.size(13.dp).padding(end = 3.dp))
+                    Text(song.artist ?: "", style = MaterialTheme.typography.bodySmall, color = Relli.cream.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
         // TV remote: move up / move down buttons instead of press-and-drag.
