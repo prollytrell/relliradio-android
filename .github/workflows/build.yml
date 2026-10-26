@@ -42,6 +42,19 @@ jobs:
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk RelliRadio.apk
 
+      - name: Show signing certificate
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          {
+            echo "Install RelliRadio.apk below on your phone."
+            echo
+            echo "Signing certificate:"
+            echo '```'
+            "$APKSIGNER" verify --print-certs RelliRadio.apk | grep -E "DN|SHA-256"
+            echo '```'
+          } > notes.md
+          cat notes.md
+
       - uses: actions/upload-artifact@v4
         with:
           name: RelliRadio-${{ github.run_number }}
@@ -53,3 +66,4 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: RelliRadio build ${{ github.run_number }}
           files: RelliRadio.apk
+          body_path: notes.md
