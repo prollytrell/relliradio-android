@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,6 +77,8 @@ fun SettingsScreen(bottom: Dp, onSignOut: () -> Unit) {
     val openOnSelect by prefs.openPlayerOnSelect.flow.collectAsState()
     var sheet by remember { mutableStateOf<String?>(null) }
     var editHome by remember { mutableStateOf(false) }
+    var syncing by remember { mutableStateOf(false) }
+    var syncStatus by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = Gutter, end = Gutter, bottom = bottom + 30.dp)) {
@@ -86,6 +89,25 @@ fun SettingsScreen(bottom: Dp, onSignOut: () -> Unit) {
                 Column(Modifier.padding(horizontal = 6.dp)) { ChipRow(QUALITIES, wifi.toString()) { prefs.wifiQuality.value = it.toInt() } }
                 Label("On mobile data", "Lower settings save data and play better on weak signal.")
                 Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) { ChipRow(QUALITIES, mobile.toString()) { prefs.mobileQuality.value = it.toInt() } }
+            }
+        }
+        item {
+            Group("Library") {
+                ActionRow(Icons.Rounded.Sync, "Sync library", syncStatus) {
+                    if (syncing) return@ActionRow
+                    syncing = true
+                    scope.launch {
+                        when (val r = com.relli.radio.ui.Library.sync { syncStatus = it }) {
+                            is com.relli.radio.ui.Library.SyncResult.Done -> {
+                                syncStatus = if (r.songs > 0) "${r.songs} songs" else "Up to date"
+                                toast(if (r.scanned) "Library synced" else "Reloaded. Only an admin account can start a scan; Navidrome scans new files on its own.")
+                            }
+                            is com.relli.radio.ui.Library.SyncResult.Failed -> { syncStatus = null; toast(r.message) }
+                        }
+                        syncing = false
+                    }
+                }
+                Label("New music shows up automatically", "Navidrome scans new files a few seconds after they're added, and the app reloads when you come back to it. Sync does both right now.")
             }
         }
         item {

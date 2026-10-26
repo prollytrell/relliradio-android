@@ -215,6 +215,24 @@ class Subsonic(private val creds: () -> Credentials?) {
         }
     }
 
+    // ---------- Library scan (Sync) ----------
+
+    data class ScanStatus(val scanning: Boolean, val count: Int, val lastScan: String?)
+
+    /** Asks Navidrome to look for new, changed or removed files. Needs an admin account. */
+    suspend fun startScan(full: Boolean = false): ScanStatus = status(call("startScan", "fullScan" to full.takeIf { it }))
+
+    suspend fun scanStatus(): ScanStatus = status(call("getScanStatus"))
+
+    private fun status(r: JsonObject): ScanStatus {
+        val s = r["scanStatus"]?.jsonObject
+        return ScanStatus(
+            s?.get("scanning")?.jsonPrimitive?.booleanOrNull ?: false,
+            s?.get("count")?.jsonPrimitive?.intOrNull ?: 0,
+            s?.get("lastScan")?.jsonPrimitive?.contentOrNull,
+        )
+    }
+
     // ---------- Playback helpers ----------
 
     suspend fun scrobble(id: String, submission: Boolean) {

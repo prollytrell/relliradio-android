@@ -70,7 +70,9 @@ sealed interface Load<out T> {
 @Composable
 fun <T> load(vararg keys: Any?, block: suspend () -> T): State<Load<T>> {
     val retry = remember { mutableIntStateOf(0) }
-    return produceState<Load<T>>(Load.Loading, *keys, retry.intValue) {
+    // Library.version changes after a Sync, so every screen reloads with the new music.
+    val libraryVersion by com.relli.radio.ui.Library.version.collectAsState()
+    return produceState<Load<T>>(Load.Loading, *keys, retry.intValue, libraryVersion) {
         value = try { Load.Ok(block()) } catch (e: Exception) { Load.Err(e.message ?: "Something went wrong") }
     }
 }

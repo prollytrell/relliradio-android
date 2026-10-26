@@ -112,12 +112,13 @@ fun LibraryScreen(tab: String, sort: String?, bottom: Dp) {
 private fun AlbumsTab(initialSort: String, bottom: Dp) {
     var sort by remember { mutableStateOf(initialSort) }
     val grid by RelliApp.prefs.albumGrid.flow.collectAsState()
-    val albums = remember(sort) { mutableStateListOf<Album>() }
-    var more by remember(sort) { mutableStateOf(true) }
-    var loading by remember(sort) { mutableStateOf(false) }
+    val libraryVersion by com.relli.radio.ui.Library.version.collectAsState()
+    val albums = remember(sort, libraryVersion) { mutableStateListOf<Album>() }
+    var more by remember(sort, libraryVersion) { mutableStateOf(true) }
+    var loading by remember(sort, libraryVersion) { mutableStateOf(false) }
     val state = rememberLazyGridState()
     val nearEnd by remember { derivedStateOf { (state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= state.layoutInfo.totalItemsCount - 8 } }
-    LaunchedEffect(sort, nearEnd, albums.size) {
+    LaunchedEffect(sort, nearEnd, albums.size, libraryVersion) {
         if (nearEnd && more && !loading) {
             loading = true
             val page = runCatching { api.albumList(sort, 60, albums.size) }.getOrDefault(emptyList())

@@ -247,6 +247,19 @@ export async function savePlayQueue(ids, current, positionMs) {
   } catch {}
 }
 
+// ---------- Library scan (Sync) ----------
+
+// Asks Navidrome to look for new, changed or removed files. Needs an admin account.
+export async function startScan() {
+  const r = await call("startScan");
+  return r.scanStatus || {};
+}
+
+export async function getScanStatus() {
+  const r = await call("getScanStatus");
+  return r.scanStatus || {};
+}
+
 export const SAVE_EVERY_MS = 3000; // how often a playing device saves its spot
 
 function livePosition(position, changedAt, serverNow) {

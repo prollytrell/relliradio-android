@@ -18,6 +18,36 @@ const QUALITIES = [
 const group = (title, ...rows) => h("section.set-group", h("h2.set-title", title), h("div.set-card", rows));
 const row = (label, hint, control) => h("div.set-row", h("div.set-text", h("span", label), hint ? h("span.hint", hint) : null), control);
 
+// "Sync library": ask Navidrome to scan, wait for it to finish, then reload what's on screen.
+// (Navidrome also scans new files on its own a few seconds after they're added.)
+function syncRow() {
+  const detail = h("span.action-detail", "");
+  const label = h("span.action-label", "Sync library");
+  let busy = false;
+  const row = h("button.action-row", { type: "button", onclick: async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      detail.textContent = "Scanning…";
+      let s = await api.startScan();
+      const started = Date.now();
+      while (s.scanning && Date.now() - started < 180000) {
+        detail.textContent = s.count ? `Scanning… ${s.count} songs` : "Scanning…";
+        await new Promise((r) => setTimeout(r, 1000));
+        s = await api.getScanStatus();
+      }
+      detail.textContent = s.count ? `${s.count} songs` : "Up to date";
+      toast("Library synced");
+    } catch (e) {
+      detail.textContent = "";
+      toast(e.code === 50 ? "Only an admin account can start a scan. Navidrome scans new files on its own." : e.message);
+    } finally {
+      busy = false;
+    }
+  } }, icon("sync"), label, detail);
+  return row;
+}
+
 export async function settingsView() {
   const s = api.getSession();
   const current = getPref("quality");
@@ -69,6 +99,7 @@ export async function settingsView() {
       ),
       group("Interface",
         actionRow("home", "Edit home widgets", () => editHomeSheet()),
+        syncRow(),
         toggle("Open Now Playing when you pick a song", getPref("openPlayerOnSelect"), (v) => setPref("openPlayerOnSelect", v), "Clicking a song in a list jumps straight to the player."),
         actionRow("lyrics", "Lyrics size, alignment, and timing", () => lyricsSettingsSheet()),
         row("Now Playing shows", null, chips([["cover", "Cover"], ["lyrics", "Lyrics"], ["visualizer", "Visualizer"]], getPref("visual"), (v) => setPref("visual", v))),

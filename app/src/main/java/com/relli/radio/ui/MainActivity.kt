@@ -277,6 +277,8 @@ private fun HandoffBanner() {
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            // Back in the app after a while: show any music added since.
+            Library.refreshIfStale()
             while (true) {
                 // While playing here, the playback service does this check itself.
                 if (!Playback.playing.value) com.relli.radio.playback.Handoff.check()
