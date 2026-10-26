@@ -1,0 +1,55 @@
+# Builds RelliRadio on GitHub's servers every time you push.
+# The APK shows up under the run's "Artifacts", and as a GitHub Release for main.
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.RELLI_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/relli.jks"
+            echo "RELLI_KEYSTORE=$RUNNER_TEMP/relli.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No signing key secret set. Using a temporary debug key; you'll need to uninstall before updating once you add a real key."
+          fi
+
+      - name: Build
+        env:
+          RELLI_KEYSTORE_PASSWORD: ${{ secrets.RELLI_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk RelliRadio.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RelliRadio-${{ github.run_number }}
+          path: RelliRadio.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: RelliRadio build ${{ github.run_number }}
+          files: RelliRadio.apk

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RR silhouette for the status bar and the media notification (Android tints it). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="128" android:viewportHeight="128">
+    <group android:translateX="-4" android:translateY="0">
+    <path android:pathData="M13,28h31c27,0 31,31 7,38l22,29h6v4H57L34,67h-3v28h7v4H13v-4h6V32h-6v-4Zm18,5v29h9c19,0 19,-29 0,-29h-9Z" android:fillType="evenOdd" android:fillColor="#FFFFFFFF"/>
+    <path android:pathData="M55,28h31c27,0 31,31 7,38l22,29h6v4H99L76,67h-3v28h7v4H55v-4h6V32h-6v-4Zm18,5v29h9c19,0 19,-29 0,-29h-9Z" android:fillType="evenOdd" android:fillColor="#FFFFFFFF"/>
+    </group>
+</vector>
