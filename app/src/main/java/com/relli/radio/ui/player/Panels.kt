@@ -403,12 +403,24 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var dragFrom by remember { mutableIntStateOf(-1) }
 
+    // Keep each song's id when the queue changes (a move, an add, a skip), matching songs by order.
+    // Stable ids keep the TV remote's selection on the row you were moving, and keep a drag alive.
     LaunchedEffect(queue) {
         if (dragging == null) {
-            entries.clear()
-            queue.forEach { entries.add(Entry(nextUid++, it)) }
+            val used = HashSet<Long>()
+            val next = queue.map { item ->
+                val same = entries.firstOrNull { it.uid !in used && it.item.mediaId == item.mediaId }
+                if (same != null) { used += same.uid; Entry(same.uid, item) } else Entry(nextUid++, item)
+            }
+            if (next.map { it.uid } != entries.map { it.uid } || next.size != entries.size) {
+                entries.clear(); entries.addAll(next)
+            } else {
+                next.forEachIndexed { i, en -> if (entries[i].item !== en.item) entries[i] = en }
+            }
         }
     }
+    // Set when a press turned into a drag, so letting go doesn't also count as a tap.
+    var pressBecameDrag by remember { mutableStateOf(false) }
 
     fun onDrag(dy: Float) {
         val uid = dragging ?: return
@@ -458,9 +470,15 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
                     Modifier
                         .zIndex(if (isDragged) 1f else 0f)
                         .graphicsLayer { translationY = if (isDragged) dragOffset else 0f; shadowElevation = if (isDragged) 16f else 0f }
-                        .pointerInput(e.uid) {
+                        // TV: the row is a normal selectable item (OK plays it); moving uses the arrow buttons.
+                        .then(if (tv) Modifier.clickable {
+                            val at = entries.indexOfFirst { it.uid == e.uid }
+                            if (at >= 0 && at != index) Playback.jump(at)
+                        } else Modifier)
+                        .then(if (tv) Modifier else Modifier.pointerInput(e.uid) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
+                                    pressBecameDrag = true
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     dragging = e.uid
                                     dragOffset = 0f
@@ -470,13 +488,14 @@ fun QueuePanel(modifier: Modifier = Modifier, onSave: () -> Unit, onSmart: () ->
                                 onDragCancel = { endDrag() },
                             ) { change, amount -> change.consume(); onDrag(amount.y) }
                         }
-                        // Taps play the song; a long press belongs to the drag above.
+                        // Taps play the song. This doesn't claim long presses, so the drag above gets them.
                         .pointerInput(e.uid) {
-                            detectTapGestures(onLongPress = {}) {
+                            detectTapGestures(onPress = { pressBecameDrag = false }) {
+                                if (pressBecameDrag) { pressBecameDrag = false; return@detectTapGestures }
                                 val at = entries.indexOfFirst { it.uid == e.uid }
                                 if (at >= 0 && at != index) Playback.jump(at)
                             }
-                        }
+                        })
                 ) {
                     QueueRow(e.item, now = now, lifted = isDragged, tv = tv,
                         onMove = { dir ->
