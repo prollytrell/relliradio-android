@@ -5,7 +5,7 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths-ignore: ["web/**", "desktop/**", ".github/workflows/desktop.yml", "**.md"]
+    paths-ignore: ["web/**", "desktop/**", "reels/**", "reels-web/**", "reels-desktop/**", ".github/workflows/desktop.yml", ".github/workflows/reels*.yml", "**.md"]
   workflow_dispatch:
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
           RELLI_KEYSTORE_PASSWORD: ${{ secrets.RELLI_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon :app:assembleRelease
           cp app/build/outputs/apk/release/app-release.apk RelliRadio.apk
 
       - name: Show signing certificate

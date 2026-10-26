@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Allows plain http to your own server (for example http://192.168.1.10:4533 at home).
+     https is still used whenever the address starts with https://. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true"/>
+</network-security-config>
