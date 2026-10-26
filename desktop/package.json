@@ -22,17 +22,31 @@
     "appId": "com.relli.radio.desktop",
     "productName": "RelliRadio",
     "artifactName": "RelliRadio-${version}-${arch}.${ext}",
-    "files": ["main.js", "preload.js", "app/**", "build/icon.png"],
-    "directories": { "output": "dist", "buildResources": "build" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "linux": {
-      "target": ["AppImage", "rpm", "deb"],
+      "target": [
+        "AppImage",
+        "rpm",
+        "deb"
+      ],
       "category": "AudioVideo;Audio;Player",
       "icon": "build/icon.png",
       "maintainer": "Rell <prollytrell@users.noreply.github.com>",
       "synopsis": "Music player for your Navidrome server"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.png"
     },
     "nsis": {
@@ -41,6 +55,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "RelliRadio"
+    },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none"
+      ]
     }
   }
 }

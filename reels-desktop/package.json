@@ -22,22 +22,44 @@
     "appId": "com.relli.reels.desktop",
     "productName": "RelliReels",
     "artifactName": "RelliReels-${version}-${arch}.${ext}",
-    "files": ["main.js", "preload.js", "app/**", "build/icon.png"],
-    "directories": { "output": "dist", "buildResources": "build" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "linux": {
-      "target": ["AppImage", "rpm", "deb"],
+      "target": [
+        "AppImage",
+        "rpm",
+        "deb"
+      ],
       "category": "AudioVideo;Video;Player",
       "icon": "build/icon.png",
       "maintainer": "Rell <prollytrell@users.noreply.github.com>",
       "synopsis": "Movies, shows and live TV from your Jellyfin server"
     },
-    "win": { "target": ["nsis"], "icon": "build/icon.png" },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "RelliReels"
+    },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none"
+      ]
     }
   }
 }
