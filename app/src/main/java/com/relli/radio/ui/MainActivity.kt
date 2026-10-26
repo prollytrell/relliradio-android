@@ -206,17 +206,27 @@ private fun AppShell(onSignOut: () -> Unit) {
         }
     }
 
-    // Now Playing opens in its own window, so a TV remote's arrows stay inside it.
-    if (playerOpen && current != null) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { Nav.playerOpen.value = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-        ) {
-            val shown = remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
-            AnimatedVisibility(shown, enter = slideInVertically(tween(280)) { it }, exit = slideOutVertically(tween(240)) { it }) {
-                NowPlaying()
+    if (isTv) {
+        // TV: Now Playing opens in its own window, so the remote's arrows stay inside it.
+        if (playerOpen && current != null) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { Nav.playerOpen.value = false },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+            ) {
+                val shown = remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+                AnimatedVisibility(shown, enter = slideInVertically(tween(280)) { it }, exit = slideOutVertically(tween(240)) { it }) {
+                    NowPlaying()
+                }
             }
         }
+    } else {
+        // Phones and tablets: Now Playing slides up over the app. (A separate window doesn't get
+        // the phone's screen-edge sizes, which pushed the bottom toolbar under the navigation bar.)
+        AnimatedVisibility(
+            visible = playerOpen && current != null,
+            enter = slideInVertically(tween(280)) { it },
+            exit = slideOutVertically(tween(240)) { it },
+        ) { NowPlaying() }
     }
 }
 

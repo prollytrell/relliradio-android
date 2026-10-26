@@ -173,6 +173,9 @@ fun NowPlaying() {
             .background(Brush.verticalGradient(0f to bg, 0.45f to bg, 1f to deep))
             // If the remote's selection ever ends up nowhere (for example after a sheet closes),
             // the next arrow press puts it back on the play button.
+            // Taps on empty areas stop here instead of reaching the screen underneath
+            // (touch only: this doesn't make the background selectable with a remote).
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
             .onFocusChanged { anyFocused = it.hasFocus }
             .onPreviewKeyEvent { e ->
                 if (!anyFocused && e.type == KeyEventType.KeyDown && e.key in arrowKeys) { runCatching { playFocus.requestFocus() }; true } else false
