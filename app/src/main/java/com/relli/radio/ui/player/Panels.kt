@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -224,7 +226,19 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
     var granted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
     }
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    var denied by remember { mutableStateOf(false) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it; denied = !it }
+    // Ask right away the first time the visualizer opens. Android's own permission window works with a
+    // TV remote, so nobody has to reach a button first.
+    var askedOnce by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!granted && !askedOnce) { askedOnce = true; ask.launch(Manifest.permission.RECORD_AUDIO) }
+    }
+    // Coming back from Android's settings: check again.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+    val allowFocus = remember { FocusRequester() }
     val session by PlayerHub.audioSessionId.collectAsState()
     var fft by remember { mutableStateOf(FloatArray(48)) }
     var wave by remember { mutableStateOf(FloatArray(128)) }
@@ -285,9 +299,26 @@ fun VisualizerPanel(modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(24.dp)) {
                     Text("The visualizer listens to RelliRadio's own audio. Android calls that microphone access, but nothing is recorded.",
                         color = Relli.cream.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
-                    Box(Modifier.clip(CircleShape).background(Relli.goldMetal).clickable { ask.launch(Manifest.permission.RECORD_AUDIO) }.padding(horizontal = 18.dp, vertical = 10.dp)) {
-                        Text("Allow", color = Relli.onGold, style = MaterialTheme.typography.labelLarge)
+                    // After saying no (Android stops asking after two no's), the button opens RelliRadio's
+                    // settings page instead, where the microphone permission can be turned on.
+                    Box(
+                        Modifier.focusRequester(allowFocus).clip(CircleShape).background(Relli.goldMetal)
+                            .clickable {
+                                if (!denied) ask.launch(Manifest.permission.RECORD_AUDIO)
+                                else runCatching {
+                                    context.startActivity(
+                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                            .setData(android.net.Uri.fromParts("package", context.packageName, null))
+                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 18.dp, vertical = 10.dp)
+                    ) {
+                        Text(if (denied) "Open settings to allow" else "Allow", color = Relli.onGold, style = MaterialTheme.typography.labelLarge)
                     }
+                    // Put the remote's selection on the button.
+                    LaunchedEffect(denied) { delay(400); runCatching { allowFocus.requestFocus() } }
                 }
             } else {
                 val c1 = Relli.cream
