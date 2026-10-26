@@ -5,7 +5,7 @@ name: Build RelliReels APK
 on:
   push:
     branches: [main]
-    paths: ["reels/**", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/reels.yml"]
+    paths: ["reels/**", "gradle/**", "build.gradle.kts", ".github/workflows/reels.yml"]
   workflow_dispatch:
 
 permissions:

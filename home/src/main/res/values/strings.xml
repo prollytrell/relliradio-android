@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RelliHome</string>
+    <string name="override_desc">Lets RelliHome open when you press the Home button on your remote. RelliHome only watches for the stock home screen opening; it doesn\'t read what\'s on screen or what you type.</string>
+</resources>

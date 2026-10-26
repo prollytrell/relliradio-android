@@ -95,11 +95,22 @@ class MainActivity : ComponentActivity() {
         if (!tv && resources.configuration.smallestScreenWidthDp < 600) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
+        intent?.getStringExtra(EXTRA_ROUTE)?.let { Nav.pending = it }
         setContent {
             RelliTheme {
                 CompositionLocalProvider(LocalIsTv provides tv) { FocusRings { Root() } }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_ROUTE)?.let { r -> Nav.controller?.let { it.navigate(r) { launchSingleTop = true } } ?: run { Nav.pending = r } }
+    }
+
+    companion object {
+        /** A screen to open right away, e.g. "item/<id>" from RelliHome. */
+        const val EXTRA_ROUTE = "route"
     }
 }
 
@@ -132,6 +143,7 @@ private fun AppShell(onSignOut: () -> Unit) {
     val tv = LocalIsTv.current
     val nav = rememberNavController()
     Nav.controller = nav
+    LaunchedEffect(nav) { Nav.pending?.let { r -> Nav.pending = null; nav.navigate(r) { launchSingleTop = true } } }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route ?: "home"
     val density = LocalDensity.current

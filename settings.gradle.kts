@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "RelliRadio"
 include(":app")
 include(":reels")
+include(":home")

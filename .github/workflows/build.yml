@@ -5,7 +5,7 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths-ignore: ["web/**", "desktop/**", "reels/**", "reels-web/**", "reels-desktop/**", ".github/workflows/desktop.yml", ".github/workflows/reels*.yml", "**.md"]
+    paths-ignore: ["web/**", "desktop/**", "reels/**", "home/**", "reels-web/**", "reels-desktop/**", ".github/workflows/desktop.yml", ".github/workflows/reels*.yml", ".github/workflows/home.yml", "**.md"]
   workflow_dispatch:
 
 permissions:

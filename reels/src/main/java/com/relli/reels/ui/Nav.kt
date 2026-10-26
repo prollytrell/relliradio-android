@@ -10,6 +10,9 @@ import com.relli.reels.ui.player.PlayerActivity
 object Nav {
     var controller: NavController? = null
 
+    /** A screen to open as soon as the app is ready (sent by RelliHome). */
+    var pending: String? = null
+
     fun go(route: String) {
         controller?.navigate(route) { launchSingleTop = true }
     }

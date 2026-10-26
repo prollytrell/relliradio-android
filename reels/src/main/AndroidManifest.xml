@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Shared with RelliHome. "signature" = only apps signed with your own key get it. -->
+    <permission android:name="com.relli.permission.LINK" android:protectionLevel="signature" />
+    <uses-permission android:name="com.relli.permission.LINK" />
+
     <!-- The same APK installs on phones and on Android TV / Google TV. -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -38,5 +42,27 @@
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode"
             android:launchMode="singleTop" />
+
+        <!-- RelliHome uses these to open shows and read your sign-in. -->
+        <activity
+            android:name=".link.LinkActivity"
+            android:exported="true"
+            android:permission="com.relli.permission.LINK"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="com.relli.reels.action.PLAY" />
+                <action android:name="com.relli.reels.action.LIVE" />
+                <action android:name="com.relli.reels.action.OPEN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name=".link.SessionProvider"
+            android:authorities="com.relli.reels.session"
+            android:exported="true"
+            android:readPermission="com.relli.permission.LINK" />
     </application>
 </manifest>

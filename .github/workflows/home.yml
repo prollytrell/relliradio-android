@@ -1,0 +1,68 @@
+# Builds RelliHome (your Android TV home screen) whenever its code changes.
+# The APK lands in a "home-N" release.
+name: Build RelliHome APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["home/**", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/home.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.RELLI_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/relli.jks"
+            echo "RELLI_KEYSTORE=$RUNNER_TEMP/relli.jks" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build
+        env:
+          RELLI_KEYSTORE_PASSWORD: ${{ secrets.RELLI_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :home:assembleRelease
+          cp home/build/outputs/apk/release/home-release.apk RelliHome.apk
+
+      - name: Show signing certificate
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          {
+            echo "Install RelliHome.apk below on your TV."
+            echo
+            echo "Signing certificate:"
+            echo '```'
+            "$APKSIGNER" verify --print-certs RelliHome.apk | grep -E "DN|SHA-256"
+            echo '```'
+          } > notes.md
+          cat notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RelliHome-${{ github.run_number }}
+          path: RelliHome.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: home-${{ github.run_number }}
+          name: RelliHome build ${{ github.run_number }}
+          files: RelliHome.apk
+          body_path: notes.md
